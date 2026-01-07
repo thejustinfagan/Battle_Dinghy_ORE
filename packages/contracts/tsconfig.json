@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["mocha", "chai", "node"],
+    "lib": ["ES2022"]
+  },
+  "include": ["tests/**/*"]
+}

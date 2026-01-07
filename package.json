@@ -1,0 +1,33 @@
+{
+  "name": "battle-dinghy",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A Solana-based battleship-style game",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:core": "pnpm --filter @battle-dinghy/core test",
+    "test:server": "pnpm --filter @battle-dinghy/server test",
+    "dev": "pnpm --filter @battle-dinghy/server dev",
+    "start": "pnpm --filter @battle-dinghy/server start",
+    "lint": "pnpm -r lint",
+    "clean": "pnpm -r clean",
+    "docker:build": "docker build -t battle-dinghy .",
+    "docker:run": "docker-compose up -d",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "keywords": [
+    "solana",
+    "battleship",
+    "game",
+    "blockchain"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

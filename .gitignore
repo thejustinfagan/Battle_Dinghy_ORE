@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+target
+.anchor
+
+# Cache directories
+.cache
+.bun
+.turbo
+
+# Local state / Replit
+.local
+.replit
+replit.nix
+.claude
+.upm
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage
+
+# Misc
+*.tar.gz
+*.tsbuildinfo
+
+# Lock files (optional - remove if you want to track these)
+# pnpm-lock.yaml

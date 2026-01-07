@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  battle-dinghy:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - BASE_URL=${BASE_URL}
+      - SOLANA_RPC=${SOLANA_RPC}
+      - ESCROW_WALLET=${ESCROW_WALLET}
+      - TWITTER_APP_KEY=${TWITTER_APP_KEY}
+      - TWITTER_APP_SECRET=${TWITTER_APP_SECRET}
+      - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
+      - TWITTER_ACCESS_SECRET=${TWITTER_ACCESS_SECRET}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

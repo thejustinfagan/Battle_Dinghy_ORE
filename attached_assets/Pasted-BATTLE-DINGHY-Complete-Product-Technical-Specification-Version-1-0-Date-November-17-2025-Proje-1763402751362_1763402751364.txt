@@ -1,0 +1,3612 @@
+BATTLE DINGHY: Complete Product & Technical Specification
+Version: 1.0
+Date: November 17, 2025
+Project Type: Solana-based Twitter Gaming Platform
+Status: Pre-Development
+
+TABLE OF CONTENTS
+
+Executive Summary
+Product Overview
+Game Mechanics
+Technical Architecture
+Twitter Bot System
+Solana Blink Integration
+ORE Mining Integration
+Database Schema
+API Specifications
+User Experience Flows
+Visual Design Specifications
+Smart Contract Architecture
+Security & Compliance
+Deployment Strategy
+Monetization Model
+Roadmap & Milestones
+Success Metrics
+Risk Assessment
+Technical Requirements
+Appendix
+
+
+1. EXECUTIVE SUMMARY
+1.1 Vision
+Battle Dinghy is a revolutionary Twitter-native gaming platform that combines classic Battleship gameplay with Solana blockchain technology and provably fair randomness via ORE mining. Players compete in public elimination tournaments where entry fees directly fund the randomness generation mechanism, creating a self-sustaining economic loop.
+1.2 Core Innovation
+
+Twitter-Native Gameplay: Entire game experience happens on Twitter timeline
+Self-Sustaining Economy: Entry fees power ORE mining that generates game randomness
+Provably Fair: All randomness verifiable on-chain via ORE protocol
+Instant Entry: Solana Blinks enable one-click payment and game entry
+Public Transparency: All gameplay visible on public Twitter thread
+
+1.3 Target Metrics (Month 1)
+
+1,000+ unique players
+500+ games completed
+10+ concurrent games during peak hours
+$50K+ in total prizes distributed
+
+1.4 Development Timeline
+
+Phase 1 (MVP): 4 weeks - Single game functionality
+Phase 2 (Beta): 4 weeks - Multi-game, automated payouts
+Phase 3 (Launch): 4 weeks - Full public launch with marketing
+Phase 4 (Scale): Ongoing - Advanced features, tournaments
+
+
+2. PRODUCT OVERVIEW
+2.1 Product Description
+Battle Dinghy is an elimination-style lottery game where 35-50 players compete simultaneously:
+
+Players pay entry fee via Solana Blink embedded in tweet
+Each player receives randomized Battleship-style board (5x5 grid)
+ORE mining protocol generates 25 random coordinates over ~25 minutes
+Each coordinate is a "shot" fired at all players' boards simultaneously
+Players with ships at hit coordinates take damage
+Last player with unsunk ships wins the prize pool + mined ORE
+
+2.2 Key Differentiators
+FeatureBattle DinghyTraditional BattleshipOnline GamblingGameplayElimination lottery1v1 strategyPure chanceRandomnessORE mining (provable)Hidden shipsRNG (blackbox)Duration25 minutes30-60 minutesInstantPlayer Count35-50 simultaneous2 players1 playerPlatformTwitter-nativeDedicated appCasino siteEntryOne-click BlinkApp downloadAccount signupTransparencyFully publicPrivateOpaque
+2.3 User Personas
+Primary: Crypto Gambler (60%)
+
+Age: 25-40
+Crypto-native, holds SOL
+Plays for profit and entertainment
+Active on Crypto Twitter
+Entry fee: $10-50
+
+Secondary: Casual Player (30%)
+
+Age: 18-35
+New to crypto
+Plays for fun, small stakes
+Follows gaming/gambling accounts
+Entry fee: $1-10
+
+Tertiary: Whale (10%)
+
+Any age
+High net worth in crypto
+Seeks exclusive high-stakes games
+Wants VIP treatment
+Entry fee: $100-1000
+
+
+3. GAME MECHANICS
+3.1 Grid System
+Board Dimensions: 5x5 grid (25 total squares)
+Coordinate System:
+  A B C D E
+1 □ □ □ □ □
+2 □ □ □ □ □
+3 □ □ □ □ □
+4 □ □ □ □ □
+5 □ □ □ □ □
+Valid Coordinates: A1, A2, A3... through E4, E5 (25 total)
+3.2 Fleet Configuration
+Each player receives 3 ships with randomized placement:
+Ship NameSizeSquaresHull PointsBig Dinghy3■■■3 HPDinghy2■■2 HPSmall Dinghy1■1 HP
+Total Fleet Stats:
+
+6 squares occupied (24% of board)
+19 empty squares (76% of board)
+6 hull points total per player
+
+Placement Rules:
+
+Ships placed horizontally or vertically only (no diagonals)
+Ships cannot overlap
+Ships cannot touch (must have 1 empty square between)
+All placements randomized on entry (player cannot choose)
+
+3.3 Shot Sequence
+Total Shots: 25 (one per grid square)
+Shot Generation:
+
+ORE mining produces block with hash
+Hash converted to deterministic coordinate
+Coordinate announced publicly on Twitter
+All 35-50 players checked for hit/miss at that coordinate
+Eliminated players announced
+Process repeats for next block
+
+Hash-to-Coordinate Algorithm:
+pythondef ore_hash_to_coordinate(block_hash):
+    """
+    Converts ORE block hash to Battle Dinghy coordinate
+    
+    Example:
+    Hash: 0x7a8f3c2b9d1e4f6a8c5b7e9d3f1a4c6e8b2d9f7a5c3e1b8d6f4a2c9e7b5d3f1
+    → Integer: large number
+    → Modulo 25: 17
+    → Coordinate: D3 (17 = row 3, col 2 = D3)
+    """
+    hash_int = int(block_hash, 16)
+    position = hash_int % 25
+    
+    row = position // 5  # 0-4
+    col = position % 5   # 0-4
+    
+    row_letter = chr(65 + row)  # 65 = 'A'
+    col_number = col + 1         # 1-indexed
+    
+    return f"{row_letter}{col_number}"
+
+# Examples:
+# position 0 → A1
+# position 4 → A5
+# position 5 → B1
+# position 24 → E5
+```
+
+**Duplicate Handling**:
+- If same coordinate selected twice: shot is a "DUD"
+- No additional damage dealt
+- Maintains 25-shot sequence even with duplicates
+- Probability of duplicate: ~4% per shot (increases as game progresses)
+
+### **3.4 Damage System**
+
+**When Coordinate Hit**:
+```
+Shot fired at C3
+  ↓
+Check all players:
+  - Player #1: No ship at C3 → MISS
+  - Player #2: Big Dinghy at C3 → HIT (-1 HP)
+  - Player #3: No ship at C3 → MISS
+  - Player #4: Small Dinghy at C3 → HIT + SUNK (0 HP = eliminated)
+  ...
+```
+
+**Hit Types**:
+- **Miss**: No ship at coordinate
+- **Hit**: Ship damaged, hull reduced by 1
+- **Sunk**: Ship reaches 0 HP, that ship destroyed
+- **Eliminated**: All ships sunk (player out of game)
+
+**Hull Tracking**:
+```
+Player Start: 6 HP (3 + 2 + 1)
+After Shot 1 (hit Big Dinghy): 5 HP
+After Shot 7 (hit Dinghy): 4 HP
+After Shot 12 (hit Dinghy again, sunk): 3 HP
+After Shot 18 (hit Big Dinghy): 2 HP
+After Shot 22 (hit Big Dinghy): 1 HP
+After Shot 24 (hit Small Dinghy, eliminated): 0 HP
+```
+
+### **3.5 Win Conditions**
+
+**Primary Win**: Last player with HP > 0
+
+**Early Termination**: 
+- If only 1 player remains before shot 25, game ends immediately
+- Winner receives full prize pool + ORE mined so far
+
+**Tiebreaker** (multiple survivors after 25 shots):
+
+1. **Most Hull Points Remaining**
+   - Player with 4 HP beats player with 2 HP
+   
+2. **Fewest Direct Hits Taken** (if HP tied)
+   - Player hit 2 times beats player hit 3 times
+   
+3. **Split Prize** (if still tied)
+   - Rare scenario, ~1% probability
+   - Prize divided equally among tied players
+
+**Statistical Probabilities**:
+- Solo winner: ~75% of games
+- 2-3 survivors: ~22% of games
+- 4+ survivors: ~3% of games
+- All eliminated: <0.1% of games
+
+### **3.6 Game Duration**
+
+**Target**: 25 minutes for 25 shots
+
+**Timing Options**:
+
+**Option A: Dedicated ORE Mining**
+- 1.5 SOL from entry fees funds mining
+- Target: 1 block per minute
+- Predictable game duration
+
+**Option B: Live ORE Network** (Recommended)
+- Subscribe to public ORE mining events
+- Use last 25 blocks mined by anyone on network
+- Zero mining cost
+- Duration varies: 15-40 minutes based on network hashrate
+
+**Shot Pacing**:
+```
+Shot 1:  0:00 - Game starts
+Shot 5:  5:00 - ~10 players eliminated
+Shot 10: 10:00 - ~20 players remaining
+Shot 15: 15:00 - ~10 players remaining
+Shot 20: 20:00 - ~5 players remaining
+Shot 25: 25:00 - Winner determined
+```
+
+---
+
+## **4. TECHNICAL ARCHITECTURE**
+
+### **4.1 System Overview**
+```
+┌─────────────────────────────────────────────────────────┐
+│                    BATTLE DINGHY SYSTEM                  │
+└─────────────────────────────────────────────────────────┘
+
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   TWITTER    │────▶│  BLINK API   │────▶│   SOLANA     │
+│     BOT      │     │    SERVER    │     │   PROGRAM    │
+└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
+       │                    │                     │
+       │              ┌─────▼─────┐               │
+       │              │  SUPABASE │               │
+       │              │  DATABASE │               │
+       │              └─────┬─────┘               │
+       │                    │                     │
+       └────────────────────┼─────────────────────┘
+                            │
+                    ┌───────▼────────┐
+                    │  ORE MINING    │
+                    │   MONITOR      │
+                    └────────────────┘
+```
+
+### **4.2 Component Breakdown**
+
+#### **A. Twitter Bot** (Node.js)
+- Posts game announcements to timeline
+- Sends board images via DM
+- Announces shots and eliminations
+- Tweets winner and prize info
+- Manages game scheduling
+
+#### **B. Blink API Server** (Node.js/Express)
+- Serves Solana Blink metadata
+- Creates payment transactions
+- Validates Twitter handles
+- Tracks game capacity
+- Webhooks for payment confirmations
+
+#### **C. Solana Program** (Rust/Anchor)
+- Escrows entry fees
+- Validates game state
+- Processes payouts
+- Emits game events
+- Manages prize pool
+
+#### **D. Supabase Database** (PostgreSQL)
+- Stores games, players, shots
+- Real-time subscriptions
+- Row-level security
+- Automatic backups
+- REST API + Realtime
+
+#### **E. ORE Mining Monitor** (Node.js)
+- Subscribes to ORE network events
+- Converts hashes to coordinates
+- Triggers shot processing
+- Validates randomness
+
+#### **F. Web Dashboard** (Next.js/React)
+- Live game viewer
+- Player statistics
+- Leaderboard
+- Game history
+- Wallet connection
+
+### **4.3 Technology Stack**
+
+| Layer | Technology | Justification |
+|-------|-----------|---------------|
+| **Smart Contract** | Rust + Anchor Framework | Solana standard, audited framework |
+| **Backend API** | Node.js + Express | Fast, async, good Solana/Twitter SDKs |
+| **Database** | Supabase (PostgreSQL) | Free tier, real-time, easy auth |
+| **Frontend** | Next.js + React + Tailwind | Fast, SEO-friendly, Vercel deploy |
+| **Twitter Integration** | twitter-api-v2 (npm) | Official SDK, well-maintained |
+| **Solana SDK** | @solana/web3.js | Official Solana JavaScript SDK |
+| **Blink Framework** | Dialect Blinks SDK | Standard for Solana Actions |
+| **Image Generation** | node-canvas | Server-side image creation |
+| **Hosting** | Vercel (frontend), Railway (backend) | Generous free tiers, easy deploy |
+| **RPC Provider** | Helius or Quicknode | Reliable, fast, free tier available |
+
+### **4.4 Infrastructure Diagram**
+```
+PRODUCTION ENVIRONMENT
+
+┌─────────────────────────────────────────────────────────┐
+│                        FRONTEND                          │
+│  Next.js App (Vercel)                                   │
+│  - Game viewer dashboard                                │
+│  - Wallet connection                                    │
+│  - Real-time WebSocket updates                          │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│                     BACKEND API                          │
+│  Express Server (Railway/Render)                        │
+│  - Blink endpoints                                      │
+│  - Payment webhooks                                     │
+│  - Game engine logic                                    │
+│  - Twitter bot scheduler                                │
+└─────────┬─────────────────────┬─────────────────────────┘
+          │                     │
+          ▼                     ▼
+┌──────────────────┐  ┌────────────────────┐
+│    SUPABASE      │  │  SOLANA MAINNET    │
+│   (Database)     │  │  (Smart Contract)  │
+│  - Games         │  │  - Prize escrow    │
+│  - Players       │  │  - Payouts         │
+│  - Shots         │  │  - Events          │
+└──────────────────┘  └────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────────┐
+│         ORE NETWORK LISTENER              │
+│  - Subscribes to mining events           │
+│  - Extracts block hashes                 │
+│  - Triggers shot processing              │
+└──────────────────────────────────────────┘
+```
+
+### **4.5 Data Flow**
+```
+PLAYER ENTRY FLOW:
+
+1. Twitter Bot posts game tweet with Blink
+2. User clicks Blink
+3. Blink prompts for Twitter handle
+4. User enters handle + approves 0.0001 SOL transaction
+5. Solana program receives payment → escrow
+6. Webhook fires to backend API
+7. API creates player record in database
+8. API generates random board
+9. API renders board image (node-canvas)
+10. API uploads image to Supabase storage
+11. Twitter bot sends DM with board image
+12. Player count incremented
+13. If capacity reached → game starts
+
+GAME EXECUTION FLOW:
+
+1. Game reaches capacity (35 players)
+2. Backend initiates mining sequence
+3. ORE block mined → hash emitted
+4. Mining monitor receives hash
+5. Hash converted to coordinate (e.g., "C3")
+6. Shot record created in database
+7. Query all players for hit/miss at C3
+8. Update player hull points
+9. Mark eliminated players
+10. Twitter bot tweets shot result
+11. Check for winner
+12. If winner found → finalize game
+13. Smart contract pays out winner
+14. Twitter bot announces winner
+
+PAYOUT FLOW:
+
+1. Winner determined (1 player or tiebreaker)
+2. Backend calls smart contract finalize()
+3. Smart contract transfers SOL from escrow to winner
+4. ORE tokens transferred to winner
+5. Game marked COMPLETED in database
+6. Twitter bot DMs winner
+7. Twitter bot posts public announcement
+8. New game automatically created
+```
+
+---
+
+## **5. TWITTER BOT SYSTEM**
+
+### **5.1 Bot Account Setup**
+
+**Account Handle**: `@battle_dinghy`
+
+**Profile**:
+- **Name**: Battle Dinghy 🚢
+- **Bio**: "Battleship meets Solana. Last dinghy standing wins. Powered by ORE mining. Play below ⬇️"
+- **Avatar**: Simple ship icon (navy blue)
+- **Banner**: 5x5 grid with ships, "Play Battle Dinghy" text
+- **Location**: "On-chain"
+- **Website**: battledinghy.com
+
+**Twitter API Requirements**:
+- Developer account (apply at developer.twitter.com)
+- Elevated access (for DMs)
+- OAuth 1.0a credentials
+- Rate limits: 300 posts/3hrs, 500 DMs/day
+
+### **5.2 Bot Functionality**
+
+#### **A. Game Announcements**
+
+**Frequency**: Every 10 minutes OR when previous game fills (whichever comes first)
+
+**Tweet Format**:
+```
+🎯 BATTLE DINGHY #{game_id}
+
+💰 Entry: {entry_fee} SOL
+👥 Slots: {current_players}/{max_players}
+🏆 Prize: ~{prize_pool} SOL + ORE
+⏱️ Starts when full
+
+[Blink embedded here]
+
+#Solana #BattleDinghy
+```
+
+**Example**:
+```
+🎯 BATTLE DINGHY #147
+
+💰 Entry: 0.001 SOL
+👥 Slots: 23/35
+🏆 Prize: ~0.0336 SOL + ORE
+⏱️ Starts when full
+
+#Solana #BattleDinghy
+```
+
+#### **B. Slot Updates**
+
+**Trigger**: Every 5 players joined OR 80% capacity
+
+**Tweet Format** (reply to game announcement):
+```
+✅ {current_players}/{max_players} spots filled!
+
+Hurry, only {remaining} left! 🏃‍♂️
+```
+
+**Example**:
+```
+✅ 30/35 spots filled!
+
+Hurry, only 5 left! 🏃‍♂️
+```
+
+#### **C. Game Start Announcement**
+
+**Trigger**: Capacity reached (35/35)
+
+**Tweet Format**:
+```
+🚀 GAME #{game_id} STARTING!
+
+👥 {max_players} players locked in
+💰 Prize pool: {prize_pool} SOL
+⏱️ First shot in ~60 seconds
+
+Watch live: {game_url}
+
+Good luck, captains! ⚓
+```
+
+#### **D. Shot Announcements**
+
+**Frequency**: After each ORE block processed
+
+**Tweet Format**:
+```
+💥 SHOT #{shot_number}/25: {coordinate}
+
+{players_hit} hit{s}
+{if eliminations}☠️ Eliminated: @player1 @player2{/if}
+
+👥 {remaining_players} players remaining
+⏱️ Next shot in ~60s
+
+{game_url}
+```
+
+**Example**:
+```
+💥 SHOT #12/25: C3
+
+4 hits
+☠️ Eliminated: @alice @bob
+
+👥 18 players remaining
+⏱️ Next shot in ~60s
+
+battledinghy.com/game/147
+```
+
+#### **E. Winner Announcement**
+
+**Trigger**: Game completion
+
+**Tweet Format**:
+```
+🏆 GAME #{game_id} COMPLETE!
+
+👑 WINNER: @{winner_handle}
+💰 Prize: {prize_sol} SOL + {prize_ore} ORE
+❤️ Hull: {hull_remaining}/6
+🎯 Total shots: {total_shots}/25
+
+Congratulations, Captain! 🎉
+
+Next game: {next_game_url}
+```
+
+**Example**:
+```
+🏆 GAME #147 COMPLETE!
+
+👑 WINNER: @cryptowhale
+💰 Prize: 0.0336 SOL + 0.41 ORE
+❤️ Hull: 3/6
+🎯 Total shots: 22/25
+
+Congratulations, Captain! 🎉
+
+Next game: battledinghy.com/game/148
+```
+
+#### **F. DM System**
+
+**Board Delivery** (sent immediately after payment):
+```
+🎮 Welcome to Battle Dinghy Game #{game_id}!
+
+Here's your fleet:
+[Board image attached]
+
+■ = Big Dinghy (3 HP)
+■ = Dinghy (2 HP)
+● = Small Dinghy (1 HP)
+
+Game starts when {max_players}/{max_players} filled.
+Currently: {current_players}/{max_players}
+
+Watch live: {game_url}
+
+Good luck! 🚢
+```
+
+**Winner Notification**:
+```
+🎉 CONGRATULATIONS!
+
+You won Game #{game_id}!
+
+💰 {prize_sol} SOL sent to your wallet
+🪙 {prize_ore} ORE sent to your wallet
+
+Transaction: {tx_signature}
+
+Thanks for playing! Join the next round:
+{next_game_url}
+```
+
+**Elimination Notice** (optional, can be toggled):
+```
+☠️ You've been eliminated from Game #{game_id}
+
+Final stats:
+❤️ Hull: 0/6
+🎯 Survived {shots_survived}/25 shots
+📊 Better than {percentile}% of players
+
+Try again: {next_game_url}
+```
+
+### **5.3 Bot Implementation**
+
+**File Structure**:
+```
+twitter-bot/
+├── src/
+│   ├── bot.ts              # Main bot controller
+│   ├── scheduler.ts        # Game creation schedule
+│   ├── announcer.ts        # Tweet composition
+│   ├── dm-handler.ts       # DM sending logic
+│   └── templates.ts        # Tweet templates
+├── utils/
+│   ├── twitter-client.ts   # Twitter API wrapper
+│   └── rate-limiter.ts     # Rate limit handling
+└── config/
+    └── twitter.config.ts   # API credentials
+Core Bot Code:
+typescript// src/bot.ts
+import { TwitterApi } from 'twitter-api-v2';
+import { EventEmitter } from 'events';
+
+export class BattleDinghyBot extends EventEmitter {
+  private client: TwitterApi;
+  private gameScheduler: NodeJS.Timer;
+  
+  constructor(credentials: TwitterCredentials) {
+    super();
+    this.client = new TwitterApi(credentials);
+  }
+  
+  async start() {
+    console.log('🤖 Battle Dinghy bot starting...');
+    
+    // Start game creation scheduler
+    this.scheduleGames();
+    
+    // Listen for game events
+    this.on('game:created', this.announceGame);
+    this.on('player:joined', this.handlePlayerJoin);
+    this.on('game:started', this.announceGameStart);
+    this.on('shot:fired', this.announceShot);
+    this.on('game:completed', this.announceWinner);
+  }
+  
+  private scheduleGames() {
+    // Create new game every 10 minutes
+    this.gameScheduler = setInterval(async () => {
+      await this.createGame();
+    }, 10 * 60 * 1000);
+  }
+  
+  async announceGame(game: Game) {
+    const tweet = this.formatGameAnnouncement(game);
+    const result = await this.client.v2.tweet(tweet);
+    
+    // Store tweet ID for threading
+    await db.games.update(game.id, { 
+      tweet_id: result.data.id 
+    });
+  }
+  
+  async handlePlayerJoin(player: Player, game: Game) {
+    // 1. Send board via DM
+    await this.sendBoardDM(player);
+    
+    // 2. Update game thread if milestone
+    if (game.current_players % 5 === 0) {
+      await this.replyToGameThread(
+        game.tweet_id,
+        `✅ ${game.current_players}/${game.max_players} spots filled!`
+      );
+    }
+    
+    // 3. Start game if full
+    if (game.current_players >= game.max_players) {
+      this.emit('game:started', game);
+    }
+  }
+  
+  async sendBoardDM(player: Player) {
+    try {
+      const user = await this.getUserByHandle(player.twitter_handle);
+      
+      await this.client.v1.sendDm({
+        recipient_id: user.id,
+        text: this.formatBoardDM(player),
+        attachment: {
+          type: 'media',
+          media: { url: player.board_image_url }
+        }
+      });
+    } catch (error) {
+      // Fallback: Reply to game thread
+      await this.replyWithBoard(player);
+    }
+  }
+  
+  // ... more methods
+}
+5.4 Rate Limit Management
+Twitter API Limits:
+
+Posts: 300 per 3 hours (100/hour)
+DMs: 500 per day
+User lookups: 300 per 15 minutes
+
+Strategy:
+typescriptclass RateLimiter {
+  private queues = {
+    tweets: [],
+    dms: [],
+    lookups: []
+  };
+  
+  private limits = {
+    tweets: { max: 100, window: 3600000, current: 0 },
+    dms: { max: 500, window: 86400000, current: 0 },
+    lookups: { max: 300, window: 900000, current: 0 }
+  };
+  
+  async queue(type: 'tweets' | 'dms' | 'lookups', action: Function) {
+    if (this.limits[type].current >= this.limits[type].max) {
+      // Wait until window resets
+      await this.waitForReset(type);
+    }
+    
+    this.limits[type].current++;
+    return await action();
+  }
+}
+Optimization:
+
+Batch DMs when possible
+Prioritize critical announcements (game start, winner)
+Queue non-urgent updates (slot fills)
+Use fallback mechanisms (public replies) if DM fails
+
+
+6. SOLANA BLINK INTEGRATION
+6.1 Blink Overview
+What are Blinks?
+Solana Actions rendered as interactive Twitter embeds. Users can:
+
+View action details
+Sign transaction
+Complete payment
+All without leaving Twitter
+
+Our Use Case:
+Users click embedded Blink → pay entry fee → join game
+6.2 Blink Structure
+Standard Actions API Format:
+json{
+  "icon": "https://battledinghy.com/icon.png",
+  "title": "Battle Dinghy #{game_id}",
+  "description": "Entry: {fee} SOL | {slots_left} spots left",
+  "label": "Join Game",
+  "links": {
+    "actions": [
+      {
+        "label": "Join ({fee} SOL)",
+        "href": "/api/actions/game/{game_id}?twitter={twitter_handle}",
+        "parameters": [
+          {
+            "name": "twitter_handle",
+            "label": "Your Twitter handle",
+            "required": true
+          }
+        ]
+      }
+    ]
+  }
+}
+6.3 Blink API Implementation
+Endpoint: GET /api/actions/game/{gameId}
+Returns: Action metadata
+typescript// api/actions/game/[gameId]/route.ts
+
+export async function GET(
+  req: Request,
+  { params }: { params: { gameId: string } }
+) {
+  const game = await db.games.findOne(params.gameId);
+  
+  if (!game) {
+    return Response.json({ error: 'Game not found' }, { status: 404 });
+  }
+  
+  if (game.status !== 'OPEN') {
+    return Response.json({ error: 'Game not accepting entries' }, { status: 400 });
+  }
+  
+  const slotsLeft = game.max_players - game.current_players;
+  
+  return Response.json({
+    icon: `${BASE_URL}/images/ship-icon.png`,
+    title: `Battle Dinghy #${game.game_id}`,
+    description: `Entry: ${game.entry_fee} SOL | ${slotsLeft} spots left | Prize: ~${game.prize_pool} SOL`,
+    label: 'Join Game',
+    links: {
+      actions: [
+        {
+          label: `Join (${game.entry_fee} SOL)`,
+          href: `/api/actions/game/${game.game_id}/join?twitter={twitter_handle}`,
+          parameters: [
+            {
+              name: 'twitter_handle',
+              label: 'Twitter handle (no @)',
+              required: true,
+              pattern: '^[a-zA-Z0-9_]{1,15}$'
+            }
+          ]
+        }
+      ]
+    }
+  });
+}
+Endpoint: POST /api/actions/game/{gameId}/join
+Receives: User's wallet address + Twitter handle
+Returns: Transaction to sign
+typescriptexport async function POST(req: Request) {
+  const { account, twitter_handle } = await req.json();
+  const { gameId } = req.params;
+  
+  // 1. Validate game
+  const game = await db.games.findOne(gameId);
+  
+  if (game.current_players >= game.max_players) {
+    return Response.json(
+      { error: 'Game full' },
+      { status: 400 }
+    );
+  }
+  
+  // 2. Validate Twitter handle
+  const cleanHandle = twitter_handle.replace('@', '').trim();
+  
+  if (!/^[a-zA-Z0-9_]{1,15}$/.test(cleanHandle)) {
+    return Response.json(
+      { error: 'Invalid Twitter handle' },
+      { status: 400 }
+    );
+  }
+  
+  // 3. Check for duplicate entry
+  const existing = await db.players.findOne({
+    game_id: gameId,
+    twitter_handle: cleanHandle
+  });
+  
+  if (existing) {
+    return Response.json(
+      { error: 'Already joined this game' },
+      { status: 400 }
+    );
+  }
+  
+  // 4. Create transaction
+  const transaction = await createJoinTransaction(
+    new PublicKey(account),
+    game.entry_fee,
+    gameId,
+    cleanHandle
+  );
+  
+  // 5. Return serialized transaction
+  const serialized = transaction.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false
+  });
+  
+  return Response.json({
+    transaction: serialized.toString('base64'),
+    message: `Joining Battle Dinghy #${gameId} as @${cleanHandle}`
+  });
+}
+6.4 Transaction Creation
+typescriptimport { 
+  Transaction, 
+  SystemProgram, 
+  PublicKey,
+  Connection
+} from '@solana/web3.js';
+
+async function createJoinTransaction(
+  playerWallet: PublicKey,
+  entryFee: number,
+  gameId: number,
+  twitterHandle: string
+): Promise<Transaction> {
+  const connection = new Connection(RPC_URL);
+  
+  // Game's prize pool wallet (PDA)
+  const [gameVault] = await PublicKey.findProgramAddress(
+    [
+      Buffer.from('game'),
+      Buffer.from(gameId.toString())
+    ],
+    PROGRAM_ID
+  );
+  
+  // Create transaction
+  const transaction = new Transaction();
+  
+  // Add transfer instruction
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: playerWallet,
+      toPubkey: gameVault,
+      lamports: entryFee * LAMPORTS_PER_SOL
+    })
+  );
+  
+  // Add game instruction (custom program)
+  transaction.add(
+    await program.methods
+      .joinGame(gameId, twitterHandle)
+      .accounts({
+        player: playerWallet,
+        game: gameVault,
+        systemProgram: SystemProgram.programId
+      })
+      .instruction()
+  );
+  
+  // Set recent blockhash
+  transaction.recentBlockhash = (
+    await connection.getLatestBlockhash()
+  ).blockhash;
+  
+  transaction.feePayer = playerWallet;
+  
+  return transaction;
+}
+6.5 Payment Webhook
+Trigger: Solana transaction confirmed
+Implementation: Listen to program logs
+typescriptimport { Connection } from '@solana/web3.js';
+
+const connection = new Connection(RPC_URL);
+
+// Subscribe to program logs
+connection.onLogs(
+  PROGRAM_ID,
+  async (logs) => {
+    if (logs.logs.some(log => log.includes('JoinGame'))) {
+      // Extract data from logs
+      const { gameId, player, twitterHandle } = parseJoinGameLog(logs);
+      
+      // Process player entry
+      await handlePlayerJoin(gameId, player, twitterHandle);
+    }
+  },
+  'confirmed'
+);
+
+async function handlePlayerJoin(
+  gameId: number,
+  walletAddress: string,
+  twitterHandle: string
+) {
+  // 1. Generate random board
+  const boardData = generateRandomBoard();
+  
+  // 2. Create player record
+  const player = await db.players.create({
+    game_id: gameId,
+    wallet_address: walletAddress,
+    twitter_handle: twitterHandle,
+    board_data: boardData,
+    hull_remaining: 6,
+    is_eliminated: false
+  });
+  
+  // 3. Generate board image
+  const imageUrl = await generateAndUploadBoardImage(
+    player.id,
+    boardData
+  );
+  
+  // 4. Update player with image URL
+  await db.players.update(player.id, {
+    board_image_url: imageUrl
+  });
+  
+  // 5. Send DM with board
+  bot.emit('player:joined', player, await db.games.findOne(gameId));
+  
+  // 6. Increment player count
+  await db.games.increment(gameId, 'current_players');
+  
+  // 7. Check if game should start
+  const game = await db.games.findOne(gameId);
+  if (game.current_players >= game.max_players) {
+    await startGame(gameId);
+  }
+}
+```
+
+### **6.6 Blink URL Format**
+
+**Game Blink**: `https://battledinghy.com/game/{gameId}`
+
+**Twitter Embed**:
+```
+When tweeted, Blink service (Dialect) fetches:
+GET https://battledinghy.com/api/actions/game/{gameId}
+
+Returns metadata, Twitter renders as interactive card
+How to Create Tweet with Blink:
+typescriptasync function postGameWithBlink(gameId: number) {
+  const blinkUrl = `https://battledinghy.com/game/${gameId}`;
+  
+  const tweet = await twitterClient.v2.tweet(
+    `🎯 BATTLE DINGHY #${gameId}\n\n` +
+    `💰 Entry: 0.001 SOL\n` +
+    `👥 Slots: 0/35\n` +
+    `🏆 Prize: ~0.0336 SOL + ORE\n\n` +
+    `${blinkUrl}`
+  );
+  
+  return tweet.data.id;
+}
+
+7. ORE MINING INTEGRATION
+7.1 ORE Protocol Overview
+What is ORE?
+
+Proof-of-work mining protocol on Solana
+Anyone can mine ORE tokens
+Mining produces unpredictable block hashes
+We use these hashes as random number generation
+
+Why ORE?
+
+Provably fair randomness (can't be manipulated)
+Transparent (all blocks public on-chain)
+Self-sustaining (entry fees fund mining)
+Thematic fit (mining = firing shots)
+
+7.2 Mining Strategy Options
+Option A: Dedicated Mining (Full Control)
+Setup:
+bash# Install ORE CLI
+cargo install ore-cli
+
+# Generate mining wallet
+solana-keygen new -o game-mining-wallet.json
+
+# Start mining
+ore \
+  --rpc https://api.mainnet-beta.solana.com \
+  --keypair ./game-mining-wallet.json \
+  --priority-fee 100000 \
+  mine \
+  --threads 4
+Pros:
+
+Control over timing
+Guaranteed block production
+Can calibrate to 1 block/minute
+
+Cons:
+
+Infrastructure cost (GPU/CPU)
+Requires 1.5 SOL per game for compute
+Need to manage mining operations
+
+Cost Analysis:
+
+Entry fee allocation: 3% to mining (1.5 SOL per game)
+Mining cost: ~$1.50 per game at current SOL prices
+Can mine 1 block/minute with $200/month dedicated server
+Break-even: ~130 games/month
+
+Option B: Network Mining (Recommended)
+Setup:
+typescriptimport { Connection, PublicKey } from '@solana/web3.js';
+
+const connection = new Connection(RPC_URL);
+const ORE_PROGRAM_ID = new PublicKey('oreV2...');
+
+// Subscribe to all ORE mining events
+connection.onLogs(
+  ORE_PROGRAM_ID,
+  async (logs) => {
+    if (logs.logs.some(log => log.includes('Mine'))) {
+      const blockHash = extractHashFromLogs(logs);
+      await processOreBlock(blockHash);
+    }
+  },
+  'confirmed'
+);
+Pros:
+
+Zero infrastructure cost
+Instant availability
+Leverages entire network's mining
+More unpredictable (better randomness)
+
+Cons:
+
+No control over timing
+Games can be 15-40 minutes (variable)
+Dependent on network hashrate
+
+Recommendation: Start with Option B (network), upgrade to Option A if games need predictable timing
+7.3 Block Selection Algorithm
+Challenge: ORE network produces thousands of blocks/day, we only need 25 per game
+Solution: Deterministic selection based on game start
+typescriptasync function initiateMiningSequence(gameId: number) {
+  const game = await db.games.findOne(gameId);
+  
+  // Get current ORE block height
+  const currentBlock = await getOreBlockHeight();
+  
+  // Next 25 blocks will be used for this game
+  const startBlock = currentBlock + 1;
+  const endBlock = startBlock + 24;
+  
+  await db.games.update(gameId, {
+    ore_start_block: startBlock,
+    ore_end_block: endBlock,
+    status: 'MINING'
+  });
+  
+  // Listen for these specific blocks
+  await subscribeToOreBlocks(gameId, startBlock, endBlock);
+}
+
+async function subscribeToOreBlocks(
+  gameId: number,
+  startBlock: number,
+  endBlock: number
+) {
+  let currentBlock = startBlock;
+  
+  connection.onLogs(ORE_PROGRAM_ID, async (logs) => {
+    if (currentBlock > endBlock) {
+      // Game complete, unsubscribe
+      return;
+    }
+    
+    if (logs.logs.some(log => log.includes('Mine'))) {
+      const hash = extractHashFromLogs(logs);
+      
+      await processShotForGame(gameId, currentBlock, hash);
+      
+      currentBlock++;
+    }
+  });
+}
+7.4 Hash Extraction
+From ORE Logs:
+typescriptfunction extractHashFromLogs(logs: LogsNotification): string {
+  // ORE emits hash in program logs
+  // Format: "Program log: Hash: 0x7a8f3c2b..."
+  
+  for (const log of logs.logs) {
+    if (log.includes('Hash:')) {
+      const hashMatch = log.match(/Hash: (0x[a-fA-F0-9]+)/);
+      if (hashMatch) {
+        return hashMatch[1];
+      }
+    }
+  }
+  
+  throw new Error('Hash not found in logs');
+}
+From Transaction Data (alternative):
+typescriptasync function getHashFromTransaction(signature: string): Promise<string> {
+  const tx = await connection.getTransaction(signature, {
+    maxSupportedTransactionVersion: 0
+  });
+  
+  // Extract from transaction meta
+  const hash = tx.meta.logMessages.find(log => 
+    log.includes('Hash:')
+  )?.split('Hash: ')[1];
+  
+  return hash;
+}
+7.5 Coordinate Mapping
+typescriptfunction oreHashToCoordinate(hash: string): string {
+  // Convert hex hash to large integer
+  const hashInt = BigInt(hash);
+  
+  // Modulo 25 for 5x5 grid
+  const position = Number(hashInt % 25n);
+  
+  // Map to A1-E5
+  const row = Math.floor(position / 5);  // 0-4
+  const col = position % 5;               // 0-4
+  
+  const rowLetter = String.fromCharCode(65 + row); // A-E
+  const colNumber = col + 1;                       // 1-5
+  
+  return `${rowLetter}${colNumber}`;
+}
+
+// Examples:
+// Hash ending in ...00 → position 0 → A1
+// Hash ending in ...0F → position 15 → D1
+// Hash ending in ...18 → position 24 → E5
+Collision Tracking:
+typescriptasync function processShotForGame(
+  gameId: number,
+  blockNumber: number,
+  hash: string
+) {
+  const coordinate = oreHashToCoordinate(hash);
+  
+  // Check if coordinate already hit
+  const existingShot = await db.shots.findOne({
+    game_id: gameId,
+    coordinate: coordinate
+  });
+  
+  if (existingShot) {
+    console.log(`Duplicate coordinate ${coordinate} - DUD shot`);
+  }
+  
+  // Record shot regardless (maintains 25-shot sequence)
+  await db.shots.create({
+    game_id: gameId,
+    shot_number: blockNumber,
+    coordinate: coordinate,
+    ore_block_hash: hash,
+    is_duplicate: !!existingShot,
+    fired_at: new Date()
+  });
+  
+  // Process damage (only if not duplicate)
+  if (!existingShot) {
+    await processDamage(gameId, coordinate);
+  }
+  
+  // Announce shot
+  bot.emit('shot:fired', gameId, coordinate, blockNumber);
+  
+  // Check for winner
+  if (blockNumber % 5 === 0) {
+    await checkForWinner(gameId);
+  }
+}
+7.6 Randomness Verification
+How Players Can Verify:
+
+Game announces ORE block range (e.g., blocks 1,234,567 - 1,234,591)
+Players can independently query Solana blockchain for these blocks
+Players can run hash-to-coordinate algorithm themselves
+Results must match game's announced shots
+
+Verification API:
+typescript// GET /api/game/{gameId}/verify
+
+export async function GET(req: Request) {
+  const { gameId } = req.params;
+  
+  const game = await db.games.findOne(gameId);
+  const shots = await db.shots.findAll({ game_id: gameId });
+  
+  return Response.json({
+    game_id: gameId,
+    ore_start_block: game.ore_start_block,
+    ore_end_block: game.ore_end_block,
+    shots: shots.map(shot => ({
+      shot_number: shot.shot_number,
+      ore_hash: shot.ore_block_hash,
+      coordinate: shot.coordinate,
+      // Include verification
+      verification: {
+        hash_int: BigInt(shot.ore_block_hash).toString(),
+        modulo_25: Number(BigInt(shot.ore_block_hash) % 25n),
+        expected_coordinate: oreHashToCoordinate(shot.ore_block_hash)
+      }
+    }))
+  });
+}
+```
+
+**Public Verification Tool** (on website):
+```
+Verify Game #147
+
+ORE Block Range: 1,234,567 - 1,234,591
+Solana Explorer: [View Blocks]
+
+Shot #1:
+  Block: 1,234,567
+  Hash: 0x7a8f3c2b9d1e4f6a8c5b7e9d3f1a4c6e...
+  Hash % 25 = 17
+  Coordinate: D3 ✓ Verified
+
+Shot #2:
+  Block: 1,234,568
+  Hash: 0x2b5e91a3c7f8d4e6b9a2c5e8f1d4a7b3...
+  Hash % 25 = 4
+  Coordinate: A5 ✓ Verified
+
+[All 25 shots verified independently]
+
+8. DATABASE SCHEMA
+8.1 Technology: Supabase (PostgreSQL)
+Why Supabase?
+
+Generous free tier (500MB database, 2GB bandwidth)
+Real-time subscriptions (WebSocket)
+Built-in authentication
+Row-level security
+Automatic REST API
+File storage included
+Easy backup/restore
+
+8.2 Schema Definition
+sql-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Games table
+CREATE TABLE games (
+  game_id SERIAL PRIMARY KEY,
+  tweet_id TEXT UNIQUE,
+  entry_fee DECIMAL(10, 9) NOT NULL,           -- SOL amount
+  max_players INTEGER NOT NULL,
+  current_players INTEGER DEFAULT 0,
+  status TEXT NOT NULL,                        -- OPEN, LOCKED, MINING, COMPLETED, CANCELLED
+  prize_pool DECIMAL(10, 9),
+  ore_mined DECIMAL(10, 6),
+  ore_start_block BIGINT,
+  ore_end_block BIGINT,
+  winner_wallet TEXT,
+  winner_twitter TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  
+  -- Constraints
+  CONSTRAINT valid_status CHECK (status IN ('OPEN', 'LOCKED', 'MINING', 'COMPLETED', 'CANCELLED')),
+  CONSTRAINT valid_players CHECK (current_players <= max_players),
+  CONSTRAINT valid_entry_fee CHECK (entry_fee > 0)
+);
+
+-- Index for finding open games
+CREATE INDEX idx_games_status ON games(status);
+CREATE INDEX idx_games_created_at ON games(created_at DESC);
+
+-- Players table
+CREATE TABLE players (
+  player_id SERIAL PRIMARY KEY,
+  game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+  wallet_address TEXT NOT NULL,
+  twitter_handle TEXT NOT NULL,
+  board_data JSONB NOT NULL,                   -- Ship placements
+  board_image_url TEXT,
+  hull_remaining INTEGER DEFAULT 6,
+  is_eliminated BOOLEAN DEFAULT FALSE,
+  joined_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Constraints
+  CONSTRAINT valid_hull CHECK (hull_remaining >= 0 AND hull_remaining <= 6),
+  CONSTRAINT unique_player_per_game UNIQUE (game_id, wallet_address)
+);
+
+-- Indexes for player queries
+CREATE INDEX idx_players_game_id ON players(game_id);
+CREATE INDEX idx_players_wallet ON players(wallet_address);
+CREATE INDEX idx_players_twitter ON players(twitter_handle);
+CREATE INDEX idx_players_eliminated ON players(game_id, is_eliminated);
+
+-- Shots table
+CREATE TABLE shots (
+  shot_id SERIAL PRIMARY KEY,
+  game_id INTEGER NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+  shot_number INTEGER NOT NULL,
+  coordinate TEXT NOT NULL,                    -- A1-E5
+  ore_block_hash TEXT NOT NULL,
+  ore_block_number BIGINT,
+  players_hit INTEGER DEFAULT 0,
+  is_duplicate BOOLEAN DEFAULT FALSE,
+  fired_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Constraints
+  CONSTRAINT valid_coordinate CHECK (
+    coordinate ~ '^[A-E][1-5]$'
+  ),
+  CONSTRAINT unique_shot_per_game UNIQUE (game_id, shot_number)
+);
+
+-- Index for shot queries
+CREATE INDEX idx_shots_game_id ON shots(game_id, shot_number);
+CREATE INDEX idx_shots_coordinate ON shots(game_id, coordinate);
+
+-- Hits table (tracks individual hits on players)
+CREATE TABLE hits (
+  hit_id SERIAL PRIMARY KEY,
+  shot_id INTEGER NOT NULL REFERENCES shots(shot_id) ON DELETE CASCADE,
+  player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+  ship_type TEXT NOT NULL,                     -- big_dinghy, dinghy, small_dinghy
+  ship_sunk BOOLEAN DEFAULT FALSE,
+  recorded_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Constraints
+  CONSTRAINT valid_ship_type CHECK (
+    ship_type IN ('big_dinghy', 'dinghy', 'small_dinghy')
+  )
+);
+
+-- Index for hit queries
+CREATE INDEX idx_hits_player_id ON hits(player_id);
+CREATE INDEX idx_hits_shot_id ON hits(shot_id);
+
+-- Transactions table (for audit trail)
+CREATE TABLE transactions (
+  tx_id SERIAL PRIMARY KEY,
+  game_id INTEGER REFERENCES games(game_id),
+  player_id INTEGER REFERENCES players(player_id),
+  tx_signature TEXT UNIQUE NOT NULL,
+  tx_type TEXT NOT NULL,                       -- ENTRY, PAYOUT, REFUND
+  amount DECIMAL(10, 9) NOT NULL,
+  wallet_address TEXT NOT NULL,
+  status TEXT NOT NULL,                        -- PENDING, CONFIRMED, FAILED
+  created_at TIMESTAMP DEFAULT NOW(),
+  confirmed_at TIMESTAMP,
+  
+  -- Constraints
+  CONSTRAINT valid_tx_type CHECK (
+    tx_type IN ('ENTRY', 'PAYOUT', 'REFUND')
+  ),
+  CONSTRAINT valid_tx_status CHECK (
+    status IN ('PENDING', 'CONFIRMED', 'FAILED')
+  )
+);
+
+-- Index for transaction lookups
+CREATE INDEX idx_transactions_signature ON transactions(tx_signature);
+CREATE INDEX idx_transactions_wallet ON transactions(wallet_address);
+CREATE INDEX idx_transactions_game_id ON transactions(game_id);
+8.3 Board Data Schema (JSONB)
+Structure:
+json{
+  "ships": [
+    {
+      "type": "big_dinghy",
+      "size": 3,
+      "coordinates": ["C2", "C3", "C4"],
+      "orientation": "vertical",
+      "hp": 3,
+      "hits": []
+    },
+    {
+      "type": "dinghy",
+      "size": 2,
+      "coordinates": ["A1", "B1"],
+      "orientation": "horizontal",
+      "hp": 2,
+      "hits": []
+    },
+    {
+      "type": "small_dinghy",
+      "size": 1,
+      "coordinates": ["E5"],
+      "orientation": "none",
+      "hp": 1,
+      "hits": []
+    }
+  ],
+  "grid": {
+    "A1": { "occupied": true, "ship": "dinghy" },
+    "A2": { "occupied": false },
+    "A3": { "occupied": false },
+    ...
+    "E5": { "occupied": true, "ship": "small_dinghy" }
+  },
+  "seed": "0x7a8f3c2b...",  // For verification
+  "generated_at": "2025-11-17T12:34:56Z"
+}
+8.4 Database Queries
+Find Active Games:
+sqlSELECT * FROM games 
+WHERE status = 'OPEN' 
+ORDER BY created_at DESC 
+LIMIT 10;
+Get Game with Players:
+sqlSELECT 
+  g.*,
+  COUNT(p.player_id) as total_players,
+  COUNT(p.player_id) FILTER (WHERE p.is_eliminated = false) as active_players
+FROM games g
+LEFT JOIN players p ON p.game_id = g.game_id
+WHERE g.game_id = $1
+GROUP BY g.game_id;
+Find Survivors:
+sqlSELECT 
+  player_id,
+  wallet_address,
+  twitter_handle,
+  hull_remaining
+FROM players
+WHERE game_id = $1 
+  AND is_eliminated = false
+ORDER BY hull_remaining DESC;
+Get Shot History:
+sqlSELECT 
+  s.shot_number,
+  s.coordinate,
+  s.ore_block_hash,
+  s.players_hit,
+  COUNT(h.hit_id) as actual_hits,
+  STRING_AGG(p.twitter_handle, ', ') as hit_players
+FROM shots s
+LEFT JOIN hits h ON h.shot_id = s.shot_id
+LEFT JOIN players p ON p.player_id = h.player_id
+WHERE s.game_id = $1
+GROUP BY s.shot_id
+ORDER BY s.shot_number ASC;
+Leaderboard Query:
+sqlSELECT 
+  p.twitter_handle,
+  p.wallet_address,
+  COUNT(DISTINCT p.game_id) as games_played,
+  COUNT(*) FILTER (WHERE g.winner_wallet = p.wallet_address) as wins,
+  SUM(g.prize_pool) FILTER (WHERE g.winner_wallet = p.wallet_address) as total_winnings,
+  ROUND(
+    COUNT(*) FILTER (WHERE g.winner_wallet = p.wallet_address)::DECIMAL / 
+    NULLIF(COUNT(DISTINCT p.game_id), 0) * 100,
+    2
+  ) as win_rate
+FROM players p
+JOIN games g ON g.game_id = p.game_id
+WHERE g.status = 'COMPLETED'
+GROUP BY p.twitter_handle, p.wallet_address
+ORDER BY wins DESC, total_winnings DESC
+LIMIT 100;
+8.5 Real-Time Subscriptions
+Supabase Real-Time Features:
+typescript// Frontend: Subscribe to game updates
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Subscribe to shots for a game
+const subscription = supabase
+  .channel(`game-${gameId}`)
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'shots',
+      filter: `game_id=eq.${gameId}`
+    },
+    (payload) => {
+      console.log('New shot fired!', payload.new);
+      updateGameUI(payload.new);
+    }
+  )
+  .subscribe();
+
+// Subscribe to player eliminations
+supabase
+  .channel(`game-${gameId}-players`)
+  .on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'players',
+      filter: `game_id=eq.${gameId}`
+    },
+    (payload) => {
+      if (payload.new.is_eliminated && !payload.old.is_eliminated) {
+        console.log('Player eliminated!', payload.new.twitter_handle);
+      }
+    }
+  )
+  .subscribe();
+8.6 Row-Level Security (RLS)
+Enable RLS:
+sql-- Enable RLS on all tables
+ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hits ENABLE ROW LEVEL SECURITY;
+
+-- Public read access to completed games
+CREATE POLICY "Public read completed games"
+ON games FOR SELECT
+USING (status = 'COMPLETED' OR status = 'MINING');
+
+-- Players can only see their own board data details
+CREATE POLICY "Players see own boards"
+ON players FOR SELECT
+USING (
+  auth.uid() IS NOT NULL OR 
+  board_data IS NULL OR 
+  is_eliminated = true
+);
+
+-- Public read access to shots
+CREATE POLICY "Public read shots"
+ON shots FOR SELECT
+USING (true);
+
+-- Only backend service can write
+CREATE POLICY "Service role can write"
+ON games FOR ALL
+USING (auth.role() = 'service_role');
+
+9. API SPECIFICATIONS
+9.1 REST API Endpoints
+Base URL: https://api.battledinghy.com
+Game Endpoints
+GET /api/games
+
+Description: List all games
+Query Parameters:
+
+status (optional): Filter by status (OPEN, MINING, COMPLETED)
+limit (optional): Number of results (default: 10, max: 100)
+offset (optional): Pagination offset
+
+
+Response:
+
+json{
+  "games": [
+    {
+      "game_id": 147,
+      "entry_fee": 0.001,
+      "max_players": 35,
+      "current_players": 23,
+      "status": "OPEN",
+      "prize_pool": 0.0336,
+      "created_at": "2025-11-17T12:00:00Z",
+      "tweet_id": "1234567890",
+      "slots_remaining": 12
+    }
+  ],
+  "total": 150,
+  "limit": 10,
+  "offset": 0
+}
+GET /api/games/{gameId}
+
+Description: Get game details
+Response:
+
+json{
+  "game_id": 147,
+  "entry_fee": 0.001,
+  "max_players": 35,
+  "current_players": 35,
+  "status": "MINING",
+  "prize_pool": 0.0336,
+  "ore_mined": 0.41,
+  "ore_start_block": 1234567,
+  "ore_end_block": 1234591,
+  "created_at": "2025-11-17T12:00:00Z",
+  "started_at": "2025-11-17T12:15:00Z",
+  "tweet_id": "1234567890",
+  "stats": {
+    "shots_fired": 12,
+    "players_remaining": 18,
+    "average_hull": 3.4
+  }
+}
+GET /api/games/{gameId}/players
+
+Description: Get players in game
+Query Parameters:
+
+eliminated (optional): Filter by elimination status
+
+
+Response:
+
+json{
+  "players": [
+    {
+      "player_id": 1,
+      "twitter_handle": "cryptowhale",
+      "hull_remaining": 5,
+      "is_eliminated": false,
+      "joined_at": "2025-11-17T12:05:00Z"
+    }
+  ],
+  "total": 35
+}
+GET /api/games/{gameId}/shots
+
+Description: Get shot history for game
+Response:
+
+json{
+  "shots": [
+    {
+      "shot_number": 1,
+      "coordinate": "C3",
+      "ore_block_hash": "0x7a8f3c...",
+      "players_hit": 4,
+      "eliminated_players": ["@alice", "@bob"],
+      "fired_at": "2025-11-17T12:16:00Z"
+    }
+  ]
+}
+GET /api/games/{gameId}/board/{playerId}
+
+Description: Get player's board (only accessible by player or after elimination)
+Authentication: Required (JWT or wallet signature)
+Response:
+
+json{
+  "player_id": 1,
+  "twitter_handle": "cryptowhale",
+  "board_image_url": "https://storage.battledinghy.com/boards/...",
+  "board_data": {
+    "ships": [...]
+  },
+  "hull_remaining": 5,
+  "is_eliminated": false
+}
+Actions Endpoints (Blinks)
+GET /api/actions/game/{gameId}
+
+Description: Get Blink metadata
+Response: Actions API format (see section 6.2)
+
+POST /api/actions/game/{gameId}/join
+
+Description: Create join transaction
+Body:
+
+json{
+  "account": "PlayerWalletAddress",
+  "twitter_handle": "cryptowhale"
+}
+
+Response:
+
+json{
+  "transaction": "base64EncodedTransaction",
+  "message": "Joining Battle Dinghy #147 as @cryptowhale"
+}
+Verification Endpoints
+GET /api/games/{gameId}/verify
+
+Description: Get verification data for provably fair check
+Response:
+
+json{
+  "game_id": 147,
+  "ore_start_block": 1234567,
+  "ore_end_block": 1234591,
+  "shots": [
+    {
+      "shot_number": 1,
+      "ore_hash": "0x7a8f3c...",
+      "coordinate": "C3",
+      "verification": {
+        "hash_int": "12345678901234567890",
+        "modulo_25": 17,
+        "expected_coordinate": "D3"
+      }
+    }
+  ],
+  "solana_explorer_url": "https://solscan.io/block/1234567"
+}
+Statistics Endpoints
+GET /api/stats/leaderboard
+
+Description: Get top players
+Query Parameters:
+
+period (optional): all_time, month, week (default: all_time)
+limit (optional): Number of results (default: 100)
+
+
+Response:
+
+json{
+  "leaderboard": [
+    {
+      "rank": 1,
+      "twitter_handle": "cryptowhale",
+      "wallet_address": "ABC123...",
+      "games_played": 150,
+      "wins": 12,
+      "win_rate": 8.0,
+      "total_winnings": 1.456,
+      "total_winnings_usd": 218.40
+    }
+  ]
+}
+GET /api/stats/overview
+
+Description: Get platform statistics
+Response:
+
+json{
+  "total_games": 5000,
+  "total_players": 25000,
+  "total_prizes_distributed": 150.5,
+  "total_prizes_usd": 22575.00,
+  "active_games": 12,
+  "games_today": 87,
+  "average_game_duration": 23.5
+}
+9.2 WebSocket API
+Connection: wss://api.battledinghy.com/ws
+Subscribe to Game:
+json{
+  "action": "subscribe",
+  "channel": "game",
+  "game_id": 147
+}
+Events Received:
+Player Joined:
+json{
+  "event": "player:joined",
+  "game_id": 147,
+  "data": {
+    "twitter_handle": "alice",
+    "current_players": 24,
+    "max_players": 35
+  }
+}
+Game Started:
+json{
+  "event": "game:started",
+  "game_id": 147,
+  "data": {
+    "started_at": "2025-11-17T12:15:00Z",
+    "ore_start_block": 1234567
+  }
+}
+Shot Fired:
+json{
+  "event": "shot:fired",
+  "game_id": 147,
+  "data": {
+    "shot_number": 12,
+    "coordinate": "C3",
+    "ore_block_hash": "0x7a8f3c...",
+    "players_hit": 4,
+    "eliminated": ["@alice", "@bob"],
+    "players_remaining": 18
+  }
+}
+Game Completed:
+json{
+  "event": "game:completed",
+  "game_id": 147,
+  "data": {
+    "winner": {
+      "twitter_handle": "cryptowhale",
+      "wallet_address": "ABC123...",
+      "hull_remaining": 3,
+      "prize_sol": 0.0336,
+      "prize_ore": 0.41
+    },
+    "completed_at": "2025-11-17T12:40:00Z"
+  }
+}
+```
+
+---
+
+## **10. USER EXPERIENCE FLOWS**
+
+### **10.1 New Player Entry Flow**
+```
+Step 1: Discovery
+  User sees @battle_dinghy tweet in timeline
+  Tweet shows: Entry fee, slots available, prize pool
+  Blink embedded in tweet (interactive card)
+
+Step 2: Decision
+  User clicks "View Details" on Blink
+  Sees:
+    - Game rules (expandable)
+    - Current players
+    - Estimated start time
+    - Prize breakdown
+
+Step 3: Entry
+  User clicks "Join Game (0.001 SOL)"
+  Blink prompts: "Enter your Twitter handle"
+  User types: "cryptowhale"
+  
+Step 4: Payment
+  Wallet popup (Phantom/Solflare)
+  Shows: "Send 0.001 SOL to Battle Dinghy Game #147"
+  User approves transaction
+  
+Step 5: Confirmation
+  Blink shows: "Payment confirmed! ✓"
+  "Your board is being sent via DM..."
+  
+Step 6: Board Receipt
+  DM arrives within 5 seconds
+  Contains:
+    - Board image
+    - Game link to watch live
+    - Current player count
+    - Estimated start time
+
+Step 7: Waiting
+  User can:
+    - Watch lobby fill up
+    - Chat with other players (optional)
+    - Share their board (optional)
+    
+Step 8: Game Start
+  DM notification: "Game #147 starting NOW!"
+  Tweet notification: "@battle_dinghy: Game starting!"
+  User navigates to live game page
+
+Step 9: Gameplay
+  User watches shots fire in real-time
+  Every ~60 seconds: new coordinate announced
+  User sees if they're hit/miss
+  Receives DM when eliminated (optional)
+
+Step 10: Conclusion
+  Game ends
+  If winner: DM with congrats + transaction link
+  If eliminated: DM with stats (optional)
+  Encouraged to join next game
+```
+
+### **10.2 Winner Experience Flow**
+```
+During Game:
+  - Watching last few shots with tension
+  - Realizes they're one of 2-3 survivors
+  - Final shot fires...
+  
+Winner Determination:
+  - Bot announces in thread: "WINNER: @cryptowhale!"
+  - Confetti animation on live game page
+  - DM arrives within seconds
+  
+DM Contents:
+  "🎉 CONGRATULATIONS!
+  
+  You won Game #147!
+  
+  💰 0.0336 SOL sent to your wallet
+  🪙 0.41 ORE sent to your wallet
+  
+  Transaction: solscan.io/tx/ABC123...
+  
+  Final stats:
+  ❤️ Hull remaining: 3/6
+  🎯 Shots survived: 22/25
+  📊 Beat 34 players!
+  
+  Thanks for playing! Join the next round:
+  [Next Game Blink]"
+  
+Winner Actions:
+  - Checks wallet (funds arrived!)
+  - Shares win on Twitter (optional)
+  - Plays again
+```
+
+### **10.3 Spectator Experience Flow**
+```
+Discovery:
+  User sees game in progress on @battle_dinghy timeline
+  Curious about outcome
+  Clicks game link
+  
+Viewing:
+  Lands on live game dashboard
+  Sees:
+    - Real-time shot log
+    - Players remaining count
+    - Prize pool
+    - Next shot countdown
+  
+  Can:
+    - Watch without wallet connection
+    - See shot history
+    - View player count changes
+    - Not see individual boards (privacy)
+  
+Engagement:
+  - Gets invested in a player
+  - Roots for them in Twitter replies
+  - Decides to join next game
+  
+Conversion:
+  - Clicks "Join Next Game" button
+  - Enters as new player (see 10.1)
+```
+
+### **10.4 Repeat Player Flow**
+```
+Returning Player:
+  Sees new game tweet
+  Recognizes @battle_dinghy
+  Immediately clicks Blink
+  
+Fast Entry:
+  Twitter handle pre-filled (saved in browser)
+  One-click approve
+  Board received
+  
+Regular Player Benefits:
+  - Appears on leaderboard
+  - Stats tracking across games
+  - Potential loyalty bonuses (future)
+  - Recognized by community
+```
+
+---
+
+## **11. VISUAL DESIGN SPECIFICATIONS**
+
+### **11.1 Board Image Requirements**
+
+**Dimensions**: 400px × 400px (mobile-optimized)
+
+**Format**: PNG with transparency
+
+**Color Palette**:
+- **Water (empty squares)**: Blue gradient
+  - Light blue: #4A90E2
+  - Dark blue: #2E5C8A
+- **Ships**: Dark gray #2C3E50
+- **Hits (explosions)**: Orange/red #E74C3C
+- **Misses**: Green circles #27AE60
+- **Grid lines**: Light gray #BDC3C7, 2px width
+
+**Layout**:
+```
+┌────────────────────────────────────┐
+│  Battle Dinghy #147               │ 30px header
+│  @cryptowhale                      │
+├────────────────────────────────────┤
+│    A   B   C   D   E              │
+│  ┌───┬───┬───┬───┬───┐            │
+│1 │ ■ │   │   │   │   │            │ 60px cells
+│  ├───┼───┼───┼───┼───┤            │
+│2 │ ■ │   │ ▲ │ ▲ │   │            │
+│  ├───┼───┼───┼───┼───┤            │
+│3 │ ■ │   │   │   │   │            │
+│  ├───┼───┼───┼───┼───┤            │
+│4 │   │ ● │   │   │   │            │
+│  ├───┼───┼───┼───┼───┤            │
+│5 │   │   │   │   │   │            │
+│  └───┴───┴───┴───┴───┘            │
+│                                    │
+│  ■ Big Dinghy (3)  ▲ Dinghy (2)  │ 30px legend
+│  ● Small Dinghy (1)               │
+└────────────────────────────────────┘
+Ship Symbols:
+
+Big Dinghy: Dark rectangles ■■■
+Dinghy: Medium triangles ▲▲
+Small Dinghy: Small circle ●
+
+Hit Indicators (during game):
+
+Hit: Red X over ship symbol
+Miss: Green circle ⭕ in empty square
+Sunk: Gray out entire ship
+
+11.2 Image Generation Code
+typescriptimport { createCanvas, loadImage } from 'canvas';
+import { writeFile } from 'fs/promises';
+
+async function generateBoardImage(
+  playerId: number,
+  boardData: BoardData,
+  gameId: number,
+  twitterHandle: string
+): Promise<string> {
+  // Create canvas
+  const canvas = createCanvas(400, 400);
+  const ctx = canvas.getContext('2d');
+  
+  // Background
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, 400, 400);
+  
+  // Header
+  ctx.fillStyle = '#2C3E50';
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText(`Battle Dinghy #${gameId}`, 10, 20);
+  ctx.font = '14px Arial';
+  ctx.fillText(`@${twitterHandle}`, 10, 40);
+  
+  // Grid setup
+  const gridStart = 60;
+  const cellSize = 60;
+  const gridSize = 5;
+  
+  // Draw column labels
+  ctx.font = 'bold 14px Arial';
+  ctx.fillStyle = '#34495E';
+  const cols = ['A', 'B', 'C', 'D', 'E'];
+  cols.forEach((col, i) => {
+    ctx.fillText(col, gridStart + i * cellSize + 25, gridStart - 10);
+  });
+  
+  // Draw row labels
+  for (let row = 0; row < gridSize; row++) {
+    ctx.fillText(
+      (row + 1).toString(),
+      gridStart - 20,
+      gridStart + row * cellSize + 35
+    );
+  }
+  
+  // Draw grid cells
+  for (let row = 0; row < gridSize; row++) {
+    for (let col = 0; col < gridSize; col++) {
+      const x = gridStart + col * cellSize;
+      const y = gridStart + row * cellSize;
+      
+      // Water gradient
+      const gradient = ctx.createLinearGradient(x, y, x, y + cellSize);
+      gradient.addColorStop(0, '#4A90E2');
+      gradient.addColorStop(1, '#2E5C8A');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, cellSize, cellSize);
+      
+      // Grid border
+      ctx.strokeStyle = '#BDC3C7';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, cellSize, cellSize);
+    }
+  }
+  
+  // Draw ships
+  for (const ship of boardData.ships) {
+    ctx.fillStyle = '#2C3E50';
+    
+    for (const coord of ship.coordinates) {
+      const { row, col } = coordinateToIndices(coord);
+      const x = gridStart + col * cellSize;
+      const y = gridStart + row * cellSize;
+      
+      // Draw ship symbol based on type
+      if (ship.type === 'big_dinghy') {
+        ctx.fillRect(x + 10, y + 10, cellSize - 20, cellSize - 20);
+      } else if (ship.type === 'dinghy') {
+        ctx.beginPath();
+        ctx.moveTo(x + cellSize / 2, y + 10);
+        ctx.lineTo(x + 50, y + 50);
+        ctx.lineTo(x + 10, y + 50);
+        ctx.closePath();
+        ctx.fill();
+      } else if (ship.type === 'small_dinghy') {
+        ctx.beginPath();
+        ctx.arc(x + cellSize / 2, y + cellSize / 2, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  
+  // Legend
+  ctx.fillStyle = '#2C3E50';
+  ctx.font = '12px Arial';
+  ctx.fillText('■ Big Dinghy (3)', 10, 380);
+  ctx.fillText('▲ Dinghy (2)', 150, 380);
+  ctx.fillText('● Small Dinghy (1)', 250, 380);
+  
+  // Save to file
+  const buffer = canvas.toBuffer('image/png');
+  const filename = `board-${playerId}-${Date.now()}.png`;
+  const filepath = `/tmp/${filename}`;
+  await writeFile(filepath, buffer);
+  
+  // Upload to Supabase storage
+  const { data, error } = await supabase.storage
+    .from('boards')
+    .upload(filename, buffer, {
+      contentType: 'image/png',
+      cacheControl: '3600'
+    });
+  
+  if (error) throw error;
+  
+  // Return public URL
+  const { data: urlData } = supabase.storage
+    .from('boards')
+    .getPublicUrl(filename);
+  
+  return urlData.publicUrl;
+}
+
+function coordinateToIndices(coord: string): { row: number; col: number } {
+  const col = coord.charCodeAt(0) - 65; // A=0, B=1, etc.
+  const row = parseInt(coord[1]) - 1;   // 1=0, 2=1, etc.
+  return { row, col };
+}
+```
+
+### **11.3 Live Game Dashboard UI**
+
+**Layout**:
+```
+┌─────────────────────────────────────────────┐
+│  BATTLE DINGHY #147 - LIVE                 │
+│  Players: 18/35  |  Prize: 0.0336 SOL     │
+└─────────────────────────────────────────────┘
+│                                             │
+│  ┌──────────────┐  ┌────────────────────┐ │
+│  │  YOUR BOARD  │  │  SHOT HISTORY      │ │
+│  │  [Image]     │  │  Shot 12: C3 ❌    │ │
+│  │              │  │  Shot 11: A5 ⭕    │ │
+│  │  Status:     │  │  Shot 10: B2 ❌    │ │
+│  │  ❤️ Hull: 5/6│  │  Shot 9: D4 ⭕     │ │
+│  │  🎯 Alive    │  │  ...               │ │
+│  └──────────────┘  │                    │ │
+│                     │  Next shot in:     │ │
+│                     │  [⏱️ 47 seconds]    │ │
+│                     └────────────────────┘ │
+│                                             │
+│  ┌──────────────────────────────────────┐  │
+│  │  PLAYERS REMAINING: 18               │  │
+│  │  🟢🟢🟢🟢🟢 🟢🟢🟢🟢🟢              │  │
+│  │  🟢🟢🟢🟢🟢 🟢🟢🟢                 │  │
+│  │  ☠️☠️☠️☠️☠️ ☠️☠️☠️☠️☠️              │  │
+│  │  ☠️☠️☠️☠️☠️ ☠️☠️                   │  │
+│  └──────────────────────────────────────┘  │
+│                                             │
+│  📊 Game Stats:                             │
+│  - Shots fired: 12/25                       │
+│  - Average hull: 3.4                        │
+│  - Eliminations: 17                         │
+│  - Started: 12 min ago                      │
+└─────────────────────────────────────────────┘
+Responsive Design:
+
+Desktop: Side-by-side layout
+Tablet: Stacked with full width
+Mobile: Single column, board at top
+
+11.4 Brand Assets
+Logo: Simple ship icon (⛵) in navy blue
+Color Scheme:
+
+Primary: Navy Blue (#2C3E50)
+Secondary: Ocean Blue (#3498DB)
+Accent: Orange (#E67E22) for CTAs
+Success: Green (#27AE60)
+Danger: Red (#E74C3C)
+
+Typography:
+
+Headers: Inter Bold
+Body: Inter Regular
+Monospace (coordinates, times): JetBrains Mono
+
+Iconography:
+
+Ships: Simple geometric shapes
+Hits/Misses: Emoji (💥, ⭕)
+Hull: Hearts (❤️)
+Money: 💰, 🪙
+
+
+12. SMART CONTRACT ARCHITECTURE
+12.1 Technology: Solana (Anchor Framework)
+Why Anchor?
+
+Industry standard for Solana development
+Built-in security features
+Auto-generated TypeScript client
+Easy testing framework
+Clear account structure
+
+12.2 Program Structure
+rust// Anchor.toml
+[programs.localnet]
+battle_dinghy = "BDinghy11111111111111111111111111111111111"
+
+[programs.devnet]
+battle_dinghy = "BDinghy11111111111111111111111111111111111"
+
+[programs.mainnet]
+battle_dinghy = "BDinghyMainnet1111111111111111111111111111"
+12.3 Account Structures
+rustuse anchor_lang::prelude::*;
+
+#[account]
+pub struct Game {
+    pub game_id: u64,
+    pub authority: Pubkey,           // Program authority
+    pub entry_fee: u64,              // In lamports
+    pub max_players: u8,
+    pub current_players: u8,
+    pub status: GameStatus,
+    pub prize_vault: Pubkey,         // PDA holding funds
+    pub ore_start_block: u64,
+    pub ore_end_block: u64,
+    pub winner: Option<Pubkey>,
+    pub created_at: i64,
+    pub started_at: Option<i64>,
+    pub completed_at: Option<i64>,
+    pub bump: u8,                    // PDA bump seed
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub enum GameStatus {
+    Open,
+    Locked,
+    InProgress,
+    Completed,
+    Cancelled,
+}
+
+#[account]
+pub struct Player {
+    pub game: Pubkey,
+    pub wallet: Pubkey,
+    pub entry_paid: u64,
+    pub joined_at: i64,
+    pub bump: u8,
+}
+
+impl Game {
+    pub const LEN: usize = 8 +        // discriminator
+        8 +                            // game_id
+        32 +                           // authority
+        8 +                            // entry_fee
+        1 +                            // max_players
+        1 +                            // current_players
+        1 +                            // status enum
+        32 +                           // prize_vault
+        8 +                            // ore_start_block
+        8 +                            // ore_end_block
+        33 +                           // Option<winner>
+        8 +                            // created_at
+        9 +                            // Option<started_at>
+        9 +                            // Option<completed_at>
+        1;                             // bump
+}
+
+impl Player {
+    pub const LEN: usize = 8 +        // discriminator
+        32 +                           // game
+        32 +                           // wallet
+        8 +                            // entry_paid
+        8 +                            // joined_at
+        1;                             // bump
+}
+12.4 Program Instructions
+rust#[program]
+pub mod battle_dinghy {
+    use super::*;
+
+    /// Create a new game
+    pub fn create_game(
+        ctx: Context<CreateGame>,
+        game_id: u64,
+        entry_fee: u64,
+        max_players: u8,
+    ) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        
+        game.game_id = game_id;
+        game.authority = ctx.accounts.authority.key();
+        game.entry_fee = entry_fee;
+        game.max_players = max_players;
+        game.current_players = 0;
+        game.status = GameStatus::Open;
+        game.prize_vault = ctx.accounts.prize_vault.key();
+        game.ore_start_block = 0;
+        game.ore_end_block = 0;
+        game.winner = None;
+        game.created_at = Clock::get()?.unix_timestamp;
+        game.started_at = None;
+        game.completed_at = None;
+        game.bump = ctx.bumps.game;
+        
+        emit!(GameCreated {
+            game_id,
+            entry_fee,
+            max_players,
+        });
+        
+        Ok(())
+    }
+
+    /// Player joins game
+    pub fn join_game(ctx: Context<JoinGame>) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        
+        // Validate game status
+        require!(
+            game.status == GameStatus::Open,
+            ErrorCode::GameNotOpen
+        );
+        
+        // Validate capacity
+        require!(
+            game.current_players < game.max_players,
+            ErrorCode::GameFull
+        );
+        
+        // Transfer entry fee to prize vault
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.player_wallet.to_account_info(),
+                to: ctx.accounts.prize_vault.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_context, game.entry_fee)?;
+        
+        // Create player record
+        let player = &mut ctx.accounts.player;
+        player.game = game.key();
+        player.wallet = ctx.accounts.player_wallet.key();
+        player.entry_paid = game.entry_fee;
+        player.joined_at = Clock::get()?.unix_timestamp;
+        player.bump = ctx.bumps.player;
+        
+        // Increment player count
+        game.current_players += 1;
+        
+        emit!(PlayerJoined {
+            game_id: game.game_id,
+            player: player.wallet,
+            current_players: game.current_players,
+            max_players: game.max_players,
+        });
+        
+        // Auto-start game if full
+        if game.current_players >= game.max_players {
+            game.status = GameStatus::Locked;
+            
+            emit!(GameLocked {
+                game_id: game.game_id,
+            });
+        }
+        
+        Ok(())
+    }
+
+    /// Start game (called by backend after mining initiated)
+    pub fn start_game(
+        ctx: Context<StartGame>,
+        ore_start_block: u64,
+        ore_end_block: u64,
+    ) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        
+        require!(
+            game.status == GameStatus::Locked,
+            ErrorCode::GameNotLocked
+        );
+        
+        game.status = GameStatus::InProgress;
+        game.ore_start_block = ore_start_block;
+        game.ore_end_block = ore_end_block;
+        game.started_at = Some(Clock::get()?.unix_timestamp);
+        
+        emit!(GameStarted {
+            game_id: game.game_id,
+            ore_start_block,
+            ore_end_block,
+        });
+        
+        Ok(())
+    }
+
+    /// Finalize game and pay winner
+    pub fn finalize_game(
+        ctx: Context<FinalizeGame>,
+        winner: Pubkey,
+    ) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        
+        require!(
+            game.status == GameStatus::InProgress,
+            ErrorCode::GameNotInProgress
+        );
+        
+        // Calculate prize (96% of total entries)
+        let total_collected = game.entry_fee
+            .checked_mul(game.current_players as u64)
+            .unwrap();
+        let prize = total_collected
+            .checked_mul(96)
+            .unwrap()
+            .checked_div(100)
+            .unwrap();
+        
+        // Transfer prize from vault to winner
+        let seeds = &[
+            b"vault",
+            game.game_id.to_le_bytes().as_ref(),
+            &[game.bump],
+        ];
+        let signer = &[&seeds[..]];
+        
+        let cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.prize_vault.to_account_info(),
+                to: ctx.accounts.winner.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_context, prize)?;
+        
+        // Update game state
+        game.status = GameStatus::Completed;
+        game.winner = Some(winner);
+        game.completed_at = Some(Clock::get()?.unix_timestamp);
+        
+        emit!(GameCompleted {
+            game_id: game.game_id,
+            winner,
+            prize,
+        });
+        
+        Ok(())
+    }
+
+    /// Cancel game and refund all players (emergency only)
+    pub fn cancel_game(ctx: Context<CancelGame>) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        
+        // Can only cancel if game hasn't started
+        require!(
+            game.status == GameStatus::Open || game.status == GameStatus::Locked,
+            ErrorCode::CannotCancelActiveGame
+        );
+        
+        game.status = GameStatus::Cancelled;
+        
+        emit!(GameCancelled {
+            game_id: game.game_id,
+        });
+        
+        // Refund logic handled by backend via individual transactions
+        
+        Ok(())
+    }
+}
+12.5 Context Structures
+rust#[derive(Accounts)]
+#[instruction(game_id: u64, entry_fee: u64, max_players: u8)]
+pub struct CreateGame<'info> {
+    #[account(
+        init,
+        payer = authority,
+        space = Game::LEN,
+        seeds = [b"game", game_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub game: Account<'info, Game>,
+    
+    #[account(
+        mut,
+        seeds = [b"vault", game_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub prize_vault: SystemAccount<'info>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct JoinGame<'info> {
+    #[account(
+        mut,
+        seeds = [b"game", game.game_id.to_le_bytes().as_ref()],
+        bump = game.bump
+    )]
+    pub game: Account<'info, Game>,
+    
+    #[account(
+        init,
+        payer = player_wallet,
+        space = Player::LEN,
+        seeds = [
+            b"player",
+            game.key().as_ref(),
+            player_wallet.key().as_ref()
+        ],
+        bump
+    )]
+    pub player: Account<'info, Player>,
+    
+    #[account(mut)]
+    pub prize_vault: SystemAccount<'info>,
+    
+    #[account(mut)]
+    pub player_wallet: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct StartGame<'info> {
+    #[account(
+        mut,
+        seeds = [b"game", game.game_id.to_le_bytes().as_ref()],
+        bump = game.bump,
+        has_one = authority
+    )]
+    pub game: Account<'info, Game>,
+    
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct FinalizeGame<'info> {
+    #[account(
+        mut,
+        seeds = [b"game", game.game_id.to_le_bytes().as_ref()],
+        bump = game.bump,
+        has_one = authority
+    )]
+    pub game: Account<'info, Game>,
+    
+    #[account(mut)]
+    pub prize_vault: SystemAccount<'info>,
+    
+    /// CHECK: Winner wallet, validated off-chain
+    #[account(mut)]
+    pub winner: AccountInfo<'info>,
+    
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+12.6 Events
+rust#[event]
+pub struct GameCreated {
+    pub game_id: u64,
+    pub entry_fee: u64,
+    pub max_players: u8,
+}
+
+#[event]
+pub struct PlayerJoined {
+    pub game_id: u64,
+    pub player: Pubkey,
+    pub current_players: u8,
+    pub max_players: u8,
+}
+
+#[event]
+pub struct GameLocked {
+    pub game_id: u64,
+}
+
+#[event]
+pub struct GameStarted {
+    pub game_id: u64,
+    pub ore_start_block: u64,
+    pub ore_end_block: u64,
+}
+
+#[event]
+pub struct GameCompleted {
+    pub game_id: u64,
+    pub winner: Pubkey,
+    pub prize: u64,
+}
+
+#[event]
+pub struct GameCancelled {
+    pub game_id: u64,
+}
+12.7 Error Codes
+rust#[error_code]
+pub enum ErrorCode {
+    #[msg("Game is not open for entries")]
+    GameNotOpen,
+    
+    #[msg("Game is full")]
+    GameFull,
+    
+    #[msg("Game is not locked")]
+    GameNotLocked,
+    
+    #[msg("Game is not in progress")]
+    GameNotInProgress,
+    
+    #[msg("Cannot cancel active game")]
+    CannotCancelActiveGame,
+    
+    #[msg("Unauthorized")]
+    Unauthorized,
+}
+
+13. SECURITY & COMPLIANCE
+13.1 Smart Contract Security
+Audit Requirements:
+
+Professional audit before mainnet launch
+Focus areas:
+
+Reentrancy attacks
+Integer overflow/underflow
+Unauthorized access
+Fund extraction vulnerabilities
+
+
+
+Security Best Practices:
+rust// ✅ Use checked arithmetic
+let prize = total_collected
+    .checked_mul(96)
+    .unwrap()
+    .checked_div(100)
+    .unwrap();
+
+// ✅ Validate account ownership
+#[account(
+    mut,
+    has_one = authority,
+    constraint = game.status == GameStatus::InProgress @ ErrorCode::InvalidGameState
+)]
+pub game: Account<'info, Game>,
+
+// ✅ Use PDAs for program-owned accounts
+#[account(
+    seeds = [b"vault", game_id.to_le_bytes().as_ref()],
+    bump
+)]
+pub prize_vault: SystemAccount<'info>,
+
+// ✅ Emit events for transparency
+emit!(GameCompleted {
+    game_id: game.game_id,
+    winner,
+    prize,
+});
+Known Risks & Mitigations:
+RiskMitigationOracle manipulationUse decentralized ORE network, not self-hostedFront-runningBlink transactions are atomic, can't be interceptedPrize pool theftFunds held in PDA, only program can withdrawGame riggingRandomness from external ORE mining, unmanipulableDDoS on entryRate limiting on Blink API, first-come-first-served
+13.2 Twitter Bot Security
+API Key Protection:
+bash# Never commit credentials
+# Use environment variables
+TWITTER_API_KEY=<secret>
+TWITTER_API_SECRET=<secret>
+TWITTER_ACCESS_TOKEN=<secret>
+TWITTER_ACCESS_SECRET=<secret>
+
+# Rotate keys quarterly
+# Use separate keys for dev/prod
+# Monitor API usage for anomalies
+Rate Limit Protection:
+typescript// Implement exponential backoff
+async function tweetWithRetry(content: string, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await twitterClient.v2.tweet(content);
+    } catch (error) {
+      if (error.code === 429) {
+        // Rate limited, wait and retry
+        await sleep(Math.pow(2, i) * 1000);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+DM Privacy:
+
+Never log DM contents
+Encrypt board images in transit
+Don't share player boards publicly until game complete
+
+13.3 Database Security
+Row-Level Security (RLS):
+sql-- Players can only update their own records
+CREATE POLICY "Players can update own data"
+ON players FOR UPDATE
+USING (auth.uid() = wallet_address)
+WITH CHECK (auth.uid() = wallet_address);
+
+-- Public can only read completed games
+CREATE POLICY "Public read completed games"
+ON games FOR SELECT
+USING (status = 'COMPLETED');
+Data Encryption:
+
+Board data encrypted at rest (Supabase default)
+Wallet addresses hashed in logs
+Twitter handles NOT considered PII (public info)
+
+Backup Strategy:
+bash# Automated daily backups
+# Retention: 30 days
+# Geographic redundancy: US + EU
+# Point-in-time recovery: enabled
+```
+
+### **13.4 Compliance Considerations**
+
+**Gambling Regulations**:
+- **Skill vs. Chance**: Game is 100% chance (no skill), may be classified as gambling in some jurisdictions
+- **Mitigation**:
+  - No marketing in restricted regions (US, UK, etc.)
+  - Terms of Service disclaimer
+  - Age verification (18+) via Twitter account age check
+
+**Anti-Money Laundering (AML)**:
+- Monitor for suspicious patterns:
+  - Same wallet winning repeatedly
+  - High-frequency entries from single wallet
+  - Unusual transaction amounts
+- Implement limits:
+  - Max entry per wallet per day: 10 games
+  - Max prize payout: $1,000 per game
+
+**Know Your Customer (KYC)**:
+- **Not required initially** (small stakes, no fiat)
+- **Trigger for KYC**: Winnings > $10,000 cumulative
+- **Process**: Email verification + ID upload
+
+**Terms of Service**:
+```
+Key clauses:
+1. Players must be 18+ years old
+2. Game is for entertainment purposes only
+3. No guarantee of winnings
+4. Prohibited jurisdictions: [list]
+5. Platform not responsible for losses
+6. Randomness provided by ORE protocol
+7. Disputes resolved via arbitration
+13.5 Incident Response Plan
+Critical Incidents:
+
+Smart contract exploit
+
+Immediate: Pause all games
+Assess: Determine scope of breach
+Fix: Deploy patched contract
+Communicate: Announce to community
+Compensate: Refund affected players
+
+
+Twitter account compromise
+
+Immediate: Reset all credentials
+Assess: Check for unauthorized tweets/DMs
+Fix: Enable 2FA, review permissions
+Communicate: Tweet from backup account
+
+
+Database breach
+
+Immediate: Isolate affected systems
+Assess: Determine data exposed
+Fix: Patch vulnerability
+Notify: Alert affected users (if PII exposed)
+
+
+
+Contact Information:
+
+Security email: security@battledinghy.com
+Bug bounty: Up to 10 SOL for critical findings
+Disclosure policy: 90-day responsible disclosure
+
+
+14. DEPLOYMENT STRATEGY
+14.1 Development Environment
+Local Setup:
+bash# 1. Clone repository
+git clone https://github.com/battle-dinghy/platform
+cd platform
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.example .env
+# Edit .env with local credentials
+
+# 4. Start Supabase local instance
+npx supabase start
+
+# 5. Run database migrations
+npx supabase db push
+
+# 6. Start development server
+npm run dev
+Solana Localnet:
+bash# Start local validator
+solana-test-validator
+
+# Deploy smart contract
+anchor build
+anchor deploy --provider.cluster localnet
+
+# Run tests
+anchor test
+14.2 Staging Environment
+Infrastructure:
+
+Solana Devnet for smart contracts
+Supabase staging project
+Railway staging deployment
+Twitter test account (@battle_dinghy_test)
+
+Testing Checklist:
+
+ Create game on devnet
+ 5 players join via Blink
+ Game starts automatically
+ ORE mining integration works
+ Shots processed correctly
+ Winner determined accurately
+ Payout executes successfully
+ Twitter bot posts correctly
+ DMs delivered
+ Leaderboard updates
+
+14.3 Production Deployment
+Pre-Launch Checklist:
+
+ Smart contract audited
+ All tests passing
+ Bug bounty program live
+ Terms of Service finalized
+ Privacy Policy published
+ Twitter account verified
+ Domain secured (battledinghy.com)
+ SSL certificates installed
+ Monitoring set up
+ Backup strategy tested
+
+Deployment Steps:
+1. Smart Contract (Mainnet):
+bash# Build for production
+anchor build --verifiable
+
+# Deploy to mainnet
+anchor deploy --provider.cluster mainnet --program-name battle_dinghy
+
+# Verify deployment
+solana program show <PROGRAM_ID>
+2. Backend API (Railway):
+bash# Connect to Railway
+railway login
+
+# Create project
+railway init
+
+# Set environment variables
+railway variables set SOLANA_RPC_URL=<mainnet-rpc>
+railway variables set TWITTER_API_KEY=<key>
+# ... set all variables
+
+# Deploy
+git push railway main
+
+# Verify deployment
+railway logs
+3. Frontend (Vercel):
+bash# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
+
+# Set environment variables
+vercel env add NEXT_PUBLIC_API_URL
+vercel env add NEXT_PUBLIC_PROGRAM_ID
+
+# Verify deployment
+curl https://battledinghy.com
+4. Database (Supabase):
+bash# Create production project
+npx supabase projects create battle-dinghy-prod
+
+# Link local to prod
+npx supabase link --project-ref <PROJECT_REF>
+
+# Push schema
+npx supabase db push
+
+# Enable realtime
+npx supabase realtime enable
+5. Twitter Bot:
+bash# Deploy to production server
+git clone https://github.com/battle-dinghy/bot
+cd bot
+npm install
+npm run build
+
+# Start with PM2
+pm2 start dist/index.js --name battle-dinghy-bot
+
+# Save PM2 config
+pm2 save
+pm2 startup
+14.4 Monitoring & Observability
+Application Monitoring:
+
+Tool: Sentry
+Metrics:
+
+Error rate
+API response times
+Transaction success rate
+Game completion rate
+
+
+
+Infrastructure Monitoring:
+
+Tool: Datadog or New Relic
+Metrics:
+
+CPU/Memory usage
+Database connections
+API request rate
+WebSocket connections
+
+
+
+Solana Monitoring:
+
+Tool: Helius Webhooks
+Events:
+
+Program instruction calls
+Transaction confirmations
+Account changes
+
+
+
+Alerting:
+yamlAlerts:
+  - name: High Error Rate
+    condition: error_rate > 5%
+    severity: critical
+    channels: [email, slack]
+  
+  - name: Transaction Failures
+    condition: tx_success_rate < 95%
+    severity: high
+    channels: [email, pagerduty]
+  
+  - name: Game Not Starting
+    condition: game_status = LOCKED for > 5 minutes
+    severity: medium
+    channels: [slack]
+Logging Strategy:
+typescript// Structured logging
+import winston from 'winston';
+
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
+});
+
+// Log key events
+logger.info('Game created', {
+  game_id: 147,
+  entry_fee: 0.001,
+  max_players: 35
+});
+
+logger.error('Payment failed', {
+  game_id: 147,
+  player: 'ABC123...',
+  error: 'Insufficient funds'
+});
+14.5 Rollback Plan
+Smart Contract Rollback:
+
+Not possible once deployed
+Mitigation: Deploy new version, migrate state
+Prevention: Thorough testing on devnet
+
+Backend Rollback:
+bash# Railway auto-rollback on crash
+# Manual rollback:
+railway rollback <DEPLOYMENT_ID>
+Frontend Rollback:
+bash# Vercel instant rollback
+vercel rollback <DEPLOYMENT_URL>
+```
+
+---
+
+## **15. MONETIZATION MODEL**
+
+### **15.1 Revenue Streams**
+
+**Primary: Platform Fees**
+- 1-4% of each game's entry fees
+- Example: 35 players × 0.001 SOL × 1% = 0.00035 SOL per game
+- At 100 games/day: 0.035 SOL/day = ~$5/day
+- Scale: 1000 games/day = $50/day = $18k/year
+
+**Fee Breakdown by Game Size**:
+
+| Entry Fee | Players | Prize Pool | Platform Fee | ORE Mining | Total Fee % |
+|-----------|---------|------------|--------------|------------|-------------|
+| 0.0001 SOL | 35 | 0.00336 SOL | 0.00003 SOL (1%) | 0.00001 SOL (3%) | 4% |
+| 0.001 SOL | 35 | 0.0336 SOL | 0.0003 SOL (1%) | 0.001 SOL (3%) | 4% |
+| 0.01 SOL | 50 | 0.48 SOL | 0.005 SOL (1%) | 0.015 SOL (3%) | 4% |
+| 0.1 SOL | 50 | 4.8 SOL | 0.05 SOL (1%) | 0.15 SOL (3%) | 4% |
+
+**Note**: As games scale and we optimize ORE mining costs, mining fee % can decrease, increasing prize pool.
+
+### **15.2 Revenue Projections**
+
+**Conservative (Year 1)**:
+- Month 1: 10 games/day = $1.50/day = $45/month
+- Month 3: 50 games/day = $7.50/day = $225/month
+- Month 6: 100 games/day = $15/day = $450/month
+- Month 12: 200 games/day = $30/day = $900/month
+
+**Total Year 1**: ~$4,000 revenue
+
+**Optimistic (Year 2)**:
+- 1,000 games/day average
+- Mix of entry tiers (0.001 - 0.1 SOL)
+- Average platform fee: 0.001 SOL per game
+- Revenue: 1,000 × 0.001 SOL × $150 = $150/day = $54k/year
+
+### **15.3 Cost Structure**
+
+**Fixed Costs (Monthly)**:
+- Supabase Pro: $25
+- Railway (backend): $20
+- Vercel Pro: $20
+- Domain + SSL: $2
+- RPC Provider (Helius): $50
+- **Total**: ~$117/month
+
+**Variable Costs**:
+- ORE mining: 3% of entry fees (self-funded)
+- Transaction fees: ~0.00001 SOL per tx
+- Image storage: Negligible (Supabase included)
+
+**Break-Even Analysis**:
+- Fixed costs: $117/month
+- Revenue per game: $0.15 (at 0.001 SOL entry)
+- Break-even: 780 games/month = 26 games/day
+
+**Profitability Timeline**:
+- Month 1: -$72 (45 - 117)
+- Month 2: -$30 (87 - 117)
+- Month 3: +$108 (225 - 117)
+- Month 4+: Profitable
+
+### **15.4 Growth Strategies**
+
+**Tier Expansion**:
+```
+Current: 0.001 SOL standard tier
+Add:
+- Micro: 0.0001 SOL (casual players)
+- Medium: 0.01 SOL (serious players)
+- Whale: 0.1 SOL (high rollers)
+- Mega: 1 SOL (tournaments)
+```
+
+**Tournament Mode**:
+- 100-500 player mega-games
+- Higher entry fees (0.1+ SOL)
+- Multi-round elimination
+- Weekly "Championship" event
+
+**Sponsorships**:
+- Partner with Solana projects for branded games
+- "Powered by [Project]" branding
+- Share of entry fees (10-20%)
+
+**NFT Integration**:
+- Collectible board designs
+- Rare ship skins
+- Winner badges/trophies
+- Tradeable on secondary markets
+
+**Affiliate Program**:
+- Twitter influencers get custom Blink
+- 5% commission on referred players
+- Tracking via unique URLs
+
+### **15.5 Token Economics (Future)**
+
+**DINGHY Token**:
+- Utility token for platform governance
+- Earn DINGHY by playing (participation rewards)
+- Stake DINGHY for VIP perks:
+  - Reduced entry fees
+  - Exclusive tournament access
+  - Revenue sharing
+
+**Distribution**:
+- 40% Player Rewards (earned over 4 years)
+- 30% Team & Development
+- 20% Liquidity & Partnerships
+- 10% Treasury
+
+**Use Cases**:
+- Pay entry fees in DINGHY (10% discount)
+- Vote on game mechanics changes
+- Unlock exclusive ship designs
+- Access VIP tournaments
+
+---
+
+## **16. ROADMAP & MILESTONES**
+
+### **16.1 Phase 1: MVP (Weeks 1-4)**
+
+**Goal**: Launch working game with 10+ players
+
+**Week 1: Foundation**
+- [ ] Smart contract development
+- [ ] Database schema creation
+- [ ] Twitter bot basic setup
+- [ ] Blink API structure
+
+**Week 2: Core Features**
+- [ ] Game creation logic
+- [ ] Player entry via Blink
+- [ ] Board randomization
+- [ ] Image generation
+
+**Week 3: Game Engine**
+- [ ] ORE mining integration
+- [ ] Shot processing
+- [ ] Damage calculation
+- [ ] Winner determination
+
+**Week 4: Testing & Launch**
+- [ ] End-to-end testing on devnet
+- [ ] Beta test with 10 players
+- [ ] Fix critical bugs
+- [ ] Soft launch announcement
+
+**Success Criteria**:
+- ✓ 1 game completed successfully
+- ✓ All 10 test players receive boards
+- ✓ Winner paid correctly
+- ✓ No critical bugs
+
+### **16.2 Phase 2: Public Beta (Weeks 5-8)**
+
+**Goal**: 100+ games, 500+ unique players
+
+**Week 5: Multi-Game Support**
+- [ ] Concurrent game handling
+- [ ] Game scheduler automation
+- [ ] Capacity management
+- [ ] Real-time dashboard
+
+**Week 6: User Experience**
+- [ ] Frontend polish
+- [ ] Mobile optimization
+- [ ] Onboarding flow
+- [ ] Help documentation
+
+**Week 7: Community Building**
+- [ ] Twitter marketing push
+- [ ] Discord server launch
+- [ ] Referral program
+- [ ] Leaderboard feature
+
+**Week 8: Optimization**
+- [ ] Performance tuning
+- [ ] Bug fixes
+- [ ] Rate limit optimization
+- [ ] Monitoring setup
+
+**Success Criteria**:
+- ✓ 100+ games completed
+- ✓ 500+ unique players
+- ✓ 5+ concurrent games
+- ✓ <5% error rate
+
+### **16.3 Phase 3: Full Launch (Weeks 9-12)**
+
+**Goal**: 1,000+ games, 5,000+ players
+
+**Week 9: Security**
+- [ ] Smart contract audit
+- [ ] Penetration testing
+- [ ] Bug bounty launch
+- [ ] Terms of Service finalization
+
+**Week 10: Marketing**
+- [ ] Press release
+- [ ] Influencer partnerships
+- [ ] Paid advertising
+- [ ] Community contests
+
+**Week 11: Features**
+- [ ] Tournament mode
+- [ ] Multiple entry tiers
+- [ ] Stats tracking
+- [ ] Achievement system
+
+**Week 12: Scale**
+- [ ] Infrastructure optimization
+- [ ] Load testing
+- [ ] Automated scaling
+- [ ] Analytics dashboard
+
+**Success Criteria**:
+- ✓ 1,000+ games completed
+- ✓ 5,000+ unique players
+- ✓ $500+ in prizes distributed
+- ✓ Profitability achieved
+
+### **16.4 Phase 4: Expansion (Months 4-12)**
+
+**Month 4-6: Advanced Features**
+- [ ] NFT board designs
+- [ ] Custom ship skins
+- [ ] Private games (friends only)
+- [ ] Team battles
+
+**Month 7-9: Token Launch**
+- [ ] DINGHY token design
+- [ ] Tokenomics finalization
+- [ ] Liquidity provision
+- [ ] Staking mechanism
+
+**Month 10-12: Platform Maturity**
+- [ ] Mobile app (React Native)
+- [ ] API for third-party integration
+- [ ] White-label solution
+- [ ] Multi-language support
+
+**Year 2 Vision**:
+- 100,000+ unique players
+- 50,000+ games/month
+- $100k+ monthly revenue
+- Expand to other blockchains (Ethereum, Base)
+
+---
+
+## **17. SUCCESS METRICS**
+
+### **17.1 Key Performance Indicators (KPIs)**
+
+**User Metrics**:
+- Daily Active Users (DAU)
+- Monthly Active Users (MAU)
+- New player sign-ups
+- Retention rate (7-day, 30-day)
+- Average games per user
+
+**Game Metrics**:
+- Games created per day
+- Games completed per day
+- Average time to fill game
+- Average game duration
+- Fill rate (% of games reaching capacity)
+
+**Financial Metrics**:
+- Daily revenue
+- Prize pool distributed
+- Platform fees collected
+- Average revenue per user (ARPU)
+- Customer acquisition cost (CAC)
+
+**Technical Metrics**:
+- API uptime (target: 99.9%)
+- Average response time (target: <200ms)
+- Transaction success rate (target: >98%)
+- Error rate (target: <1%)
+
+### **17.2 Tracking Dashboard**
+
+**Real-Time Metrics**:
+```
+┌─────────────────────────────────────┐
+│  BATTLE DINGHY ANALYTICS            │
+├─────────────────────────────────────┤
+│  Active Games: 12                   │
+│  Players Online: 347                │
+│  Games Today: 87 (+12 vs yesterday) │
+│  Revenue Today: 1.2 SOL ($180)     │
+└─────────────────────────────────────┘
+
+Recent Games:
+#147: COMPLETED - 35 players, 0.0336 SOL prize
+#148: MINING - 18/35 alive, shot 14/25
+#149: OPEN - 28/35 players
+
+Top Players (24h):
+1. @cryptowhale - 3 wins, 0.1 SOL
+2. @solanamaxi - 2 wins, 0.067 SOL
+3. @dinghy_king - 1 win, 0.0336 SOL
+```
+
+### **17.3 Reporting**
+
+**Daily Report** (automated email):
+```
+Battle Dinghy Daily Report - Nov 17, 2025
+
+📊 Overview:
+- Games: 87 (+8% vs yesterday)
+- Players: 1,247 unique (+15%)
+- Revenue: 1.2 SOL ($180)
+- Fill Rate: 94%
+
+🎯 Top Performers:
+- Highest Prize: 0.48 SOL (Game #143)
+- Fastest Fill: 3 minutes (Game #151)
+- Most Popular: 0.001 SOL tier (72% of games)
+
+🐛 Issues:
+- 2 DM delivery failures (Twitter rate limit)
+- 1 game delayed 5 min (ORE network slow)
+
+🎬 Action Items:
+- Increase DM rate limit buffer
+- Add ORE network fallback
+Weekly Report:
+
+User growth trends
+Revenue trends
+Retention cohorts
+Feature usage
+Bug summary
+
+Monthly Report:
+
+Financials (P&L statement)
+User acquisition analysis
+Churn analysis
+Roadmap progress
+Strategic planning
+
+
+18. RISK ASSESSMENT
+18.1 Technical Risks
+RiskProbabilityImpactMitigationSmart contract exploitLowCriticalAudit, bug bounty, insuranceORE network downtimeMediumHighFallback to self-hosted miningTwitter API rate limitsHighMediumAggressive caching, queue systemSolana network congestionMediumMediumPriority fees, retry logicDatabase outageLowHighAutomated backups, failoverDDoS attackMediumMediumCloudflare, rate limiting
+18.2 Business Risks
+RiskProbabilityImpactMitigationLow player adoptionMediumCriticalMarketing, influencer partnershipsRegulatory shutdownLowCriticalLegal review, complianceCompetitor emergenceHighMediumRapid feature developmentToken price volatilityHighMediumDiversify to stablecoinsNegative pressLowHighPR strategy, transparency
+18.3 Operational Risks
+RiskProbabilityImpactMitigationKey team member leavesLowHighDocumentation, knowledge sharingBurnoutMediumMediumAutomation, delegationCash flow issuesMediumHighFundraising, cost controlSecurity breachLowCriticalPenetration testing, monitoringReputation damageLowHighCommunity management, transparency
+18.4 Contingency Plans
+Smart Contract Emergency:
+
+Pause all games immediately
+Assess exploit scope
+Refund all active players
+Fix vulnerability
+Re-audit
+Redeploy
+Resume operations
+
+Twitter Account Compromise:
+
+Lock account
+Reset all credentials
+Review audit logs
+Announce via backup channels
+Restore legitimate access
+Implement 2FA everywhere
+
+Database Breach:
+
+Isolate compromised systems
+Assess data exposure
+Notify affected users (if PII)
+Reset all credentials
+Implement additional security
+Report to authorities (if required)
+
+
+19. TECHNICAL REQUIREMENTS
+19.1 Development Tools
+Required:
+
+Node.js v18+ (LTS)
+Rust 1.70+
+Solana CLI 1.16+
+Anchor CLI 0.28+
+Git
+PostgreSQL 15+ (via Supabase)
+
+Recommended:
+
+Cursor or Windsurf IDE
+Replit Agent (for AI assistance)
+Postman (API testing)
+Solana Explorer (blockchain debugging)
+
+19.2 API Dependencies
+npm Packages:
+json{
+  "dependencies": {
+    "@solana/web3.js": "^1.78.0",
+    "@coral-xyz/anchor": "^0.28.0",
+    "twitter-api-v2": "^1.15.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "express": "^4.18.2",
+    "canvas": "^2.11.2",
+    "ws": "^8.14.2",
+    "dotenv": "^16.3.1"
+  }
+}
+19.3 Infrastructure Requirements
+Minimum (Development):
+
+2 CPU cores
+4 GB RAM
+20 GB storage
+10 Mbps internet
+
+Recommended (Production):
+
+4 CPU cores
+8 GB RAM
+100 GB storage
+100 Mbps internet
+Load balancer
+CDN (Cloudflare)
+
+19.4 Third-Party Services
+Required:
+
+Twitter Developer Account (Elevated)
+Solana RPC (Helius or Quicknode)
+Supabase (Pro plan recommended)
+Domain registrar (Namecheap, Cloudflare)
+
+Optional:
+
+Sentry (error tracking)
+Datadog (monitoring)
+Mixpanel (analytics)
+Mailgun (email notifications)
+
+
+20. APPENDIX
+20.1 Glossary
+Battle Dinghy: The name of the game/platform
+Blink: Solana Action rendered as interactive Twitter card
+ORE: Proof-of-work mining protocol on Solana used for randomness
+DM: Twitter Direct Message
+Hull: Health points for ships
+PDA: Program Derived Address (Solana smart contract account)
+Lamports: Smallest unit of SOL (1 SOL = 1 billion lamports)
+Anchor: Framework for developing Solana smart contracts
+20.2 Reference Links
+Documentation:
+
+Solana Docs: https://docs.solana.com
+Anchor Book: https://book.anchor-lang.com
+Twitter API: https://developer.twitter.com/en/docs
+Supabase Docs: https://supabase.com/docs
+ORE Protocol: https://ore.supply
+
+Tools:
+
+Solana Explorer: https://solscan.io
+Anchor Playground: https://beta.solpg.io
+Dialect (Blinks): https://dialect.to
+
+20.3 Contact Information
+Project:
+
+Website: https://battledinghy.com
+Twitter: @battle_dinghy
+Discord: discord.gg/battledinghy
+Email: hello@battledinghy.com
+
+Support:
+
+Help Desk: support@battledinghy.com
+Bug Reports: bugs@battledinghy.com
+Security: security@battledinghy.com

@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+*.log
+.env
+.env.*
+!.env.example
+coverage
+.nyc_output
+.DS_Store
+*.tgz
+packages/contracts/target
+packages/contracts/node_modules

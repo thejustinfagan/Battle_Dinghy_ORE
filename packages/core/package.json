@@ -1,0 +1,30 @@
+{
+  "name": "@battle-dinghy/core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Core game logic for Battle Dinghy",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.0"
+  }
+}
