@@ -24,7 +24,7 @@ COPY packages/core/package.json ./packages/core/
 COPY packages/server/package.json ./packages/server/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source
 COPY packages/core ./packages/core
