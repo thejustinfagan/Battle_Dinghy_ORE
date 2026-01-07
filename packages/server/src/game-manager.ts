@@ -7,16 +7,13 @@ import { randomBytes } from 'crypto';
 import type { WebSocket } from 'ws';
 import {
   GameEngine,
-  GameConfig,
   OreMonitorMock,
   OreRoundResult,
   RoundSummary,
   MAX_PLAYERS,
-  MAX_ROUNDS,
 } from '@battle-dinghy/core';
 import type {
   ManagedGame,
-  GameStatus,
   GameStatusResponse,
   PlayerCardResponse,
   WSMessage,
@@ -31,7 +28,6 @@ import type {
 // =============================================================================
 
 const DEFAULT_MAX_PLAYERS = 10;
-const DEFAULT_BUY_IN = 1_000_000; // 0.001 SOL in lamports
 const ORE_POLL_INTERVAL_MS = 60_000; // 1 minute for real ORE
 
 // =============================================================================
@@ -109,7 +105,8 @@ export class GameManager extends EventEmitter {
     }
 
     game.players.add(playerWallet);
-    game.config.players = Array.from(game.players);
+    // Cast to mutable to update players array
+    (game.config as { players: string[] }).players = Array.from(game.players);
 
     const playerIndex = game.config.players.indexOf(playerWallet);
 

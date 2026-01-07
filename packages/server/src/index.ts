@@ -3,8 +3,8 @@
 // Express + WebSocket server for managing Battle Dinghy games.
 // Includes Blinks integration and Twitter bot for game announcements.
 
-import express from 'express';
-import { createServer } from 'http';
+import express, { Express } from 'express';
+import { createServer, Server } from 'http';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { GameManager } from './game-manager.js';
 import { createRoutes } from './routes.js';
@@ -44,7 +44,16 @@ export interface CreateAppOptions {
   enableRateLimiting?: boolean;
 }
 
-export function createApp(options?: CreateAppOptions) {
+export function createApp(options?: CreateAppOptions): {
+  app: Express;
+  server: Server;
+  gameManager: GameManager;
+  wss: ReturnType<typeof setupWebSocket>;
+  twitterBot: ReturnType<typeof createTwitterBot>;
+  orchestrator: ReturnType<typeof createOrchestrator>;
+  cleanup: () => void;
+  rateLimiters: RateLimiter[];
+} {
   const app = express();
   const server = createServer(app);
   const gameManager = new GameManager();

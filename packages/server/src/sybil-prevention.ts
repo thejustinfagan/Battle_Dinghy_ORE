@@ -189,8 +189,8 @@ export class SybilPreventionService {
   private evaluateAccount(user: {
     created_at?: string;
     public_metrics?: {
-      followers_count: number;
-      tweet_count: number;
+      followers_count?: number;
+      tweet_count?: number;
     };
     profile_image_url?: string;
     description?: string;
@@ -227,8 +227,8 @@ export class SybilPreventionService {
 
     // Check followers
     if (user.public_metrics) {
-      details.followers = user.public_metrics.followers_count;
-      details.tweets = user.public_metrics.tweet_count;
+      details.followers = user.public_metrics.followers_count ?? 0;
+      details.tweets = user.public_metrics.tweet_count ?? 0;
 
       if (details.followers < this.requirements.minFollowers) {
         return {

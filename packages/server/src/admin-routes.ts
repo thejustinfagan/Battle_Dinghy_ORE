@@ -224,7 +224,7 @@ ${blinkUrl}`;
   /**
    * POST /admin/test-twitter - Post a test tweet
    */
-  router.post('/test-twitter', async (req: Request, res: Response) => {
+  router.post('/test-twitter', async (_req: Request, res: Response) => {
     if (!twitterBot) {
       res.status(503).json({
         success: false,

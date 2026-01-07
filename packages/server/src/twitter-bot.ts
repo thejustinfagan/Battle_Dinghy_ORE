@@ -2,15 +2,12 @@
 //
 // Posts game announcements, round results, and winner announcements to Twitter.
 
-import { TwitterApi, TwitterApiReadWrite } from 'twitter-api-v2';
+import { TwitterApi, TwitterApiReadWrite, SendTweetV2Params } from 'twitter-api-v2';
 import { CellIndex, cellToPosition } from '@battle-dinghy/core';
 import {
   renderCard,
   renderRoundResult,
   renderWinner,
-  CardRenderOptions,
-  RoundResultOptions,
-  WinnerOptions,
 } from './card-renderer.js';
 import type { GameManager } from './game-manager.js';
 
@@ -389,9 +386,9 @@ Keep your ships secret! 🤫⚓`;
         mimeType: 'image/png',
       });
 
-      const tweetOptions: { text: string; media: { media_ids: string[] }; reply?: { in_reply_to_tweet_id: string } } = {
+      const tweetOptions: SendTweetV2Params = {
         text,
-        media: { media_ids: [mediaId] },
+        media: { media_ids: [mediaId] as [string] },
       };
 
       if (replyToTweetId) {

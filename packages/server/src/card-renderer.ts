@@ -2,7 +2,7 @@
 //
 // Generates PNG images of player battle cards for Twitter posting.
 
-import { createCanvas, Canvas, CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, CanvasRenderingContext2D } from 'canvas';
 import {
   GRID_SIZE,
   TOTAL_CELLS,
