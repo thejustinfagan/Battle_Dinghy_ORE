@@ -106,7 +106,7 @@ export class GameManager extends EventEmitter {
 
     game.players.add(playerWallet);
     // Cast to mutable to update players array
-    (game.config as { players: string[] }).players = Array.from(game.players);
+    (game.config as unknown as { players: string[] }).players = Array.from(game.players);
 
     const playerIndex = game.config.players.indexOf(playerWallet);
 
