@@ -27,6 +27,7 @@ export interface GameAnnouncement {
   gameId: string;
   buyInSol: number;
   maxPlayers: number;
+  fillDeadlineMinutes?: number; // Minutes until game auto-starts
   startTime?: Date; // When the game will auto-start
   customMessage?: string; // Optional custom message to prepend
 }
@@ -117,7 +118,7 @@ ${blinkUrl}`;
    * Generate the tweet text for preview (without posting).
    */
   generateTweetPreview(announcement: GameAnnouncement): { text: string; blinkUrl: string } {
-    const { gameId, buyInSol, maxPlayers, customMessage } = announcement;
+    const { gameId, buyInSol, maxPlayers, fillDeadlineMinutes, customMessage } = announcement;
     const blinkUrl = `${this.baseUrl}/blinks/join/${gameId}`;
 
     let text = '';
@@ -126,10 +127,21 @@ ${blinkUrl}`;
       text += `${customMessage.trim()}\n\n`;
     }
 
+    // Format deadline display
+    let deadlineText = '';
+    if (fillDeadlineMinutes) {
+      if (fillDeadlineMinutes >= 60) {
+        const hours = Math.floor(fillDeadlineMinutes / 60);
+        deadlineText = `${hours} hour${hours > 1 ? 's' : ''}`;
+      } else {
+        deadlineText = `${fillDeadlineMinutes} min`;
+      }
+    }
+
     text += `⚓ BATTLE DINGHY ⚓
 
 💰 Buy-in: ${buyInSol} SOL
-👥 Max Players: ${maxPlayers}
+👥 Max Players: ${maxPlayers}${deadlineText ? `\n⏰ Starts in: ${deadlineText}` : ''}
 🏆 Winner takes all!
 
 Join the battle 👇

@@ -297,6 +297,18 @@
             <input type="number" id="maxPlayers" min="2" max="100" value="10" required>
           </div>
           <div class="form-group">
+            <label for="fillDeadline">Fill Deadline (minutes)</label>
+            <select id="fillDeadline">
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="120">2 hours</option>
+              <option value="240">4 hours</option>
+              <option value="480">8 hours</option>
+              <option value="1440">24 hours</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="customMessage">Custom Tweet Message (optional)</label>
             <textarea id="customMessage" placeholder="Add a custom message to the tweet..."></textarea>
           </div>
@@ -468,6 +480,7 @@
     async function previewTweet() {
       const entryFee = document.getElementById('entryFee').value;
       const maxPlayers = document.getElementById('maxPlayers').value;
+      const fillDeadline = document.getElementById('fillDeadline').value;
       const customMessage = document.getElementById('customMessage').value;
 
       try {
@@ -477,6 +490,7 @@
           body: JSON.stringify({
             entryFeeSol: parseFloat(entryFee),
             maxPlayers: parseInt(maxPlayers),
+            fillDeadlineMinutes: parseInt(fillDeadline),
             customMessage
           })
         });
@@ -508,6 +522,7 @@
           body: JSON.stringify({
             entryFeeSol: parseFloat(document.getElementById('entryFee').value),
             maxPlayers: parseInt(document.getElementById('maxPlayers').value),
+            fillDeadlineMinutes: parseInt(document.getElementById('fillDeadline').value),
             customMessage: document.getElementById('customMessage').value
           })
         });

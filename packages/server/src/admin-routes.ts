@@ -14,6 +14,7 @@ import type { GameOrchestrator } from './orchestrator.js';
 export interface CreateAndPostRequest {
   entryFeeSol: number;
   maxPlayers: number;
+  fillDeadlineMinutes?: number;
   customMessage?: string;
 }
 
@@ -29,6 +30,7 @@ export interface CreateAndPostResponse {
 export interface TweetPreviewRequest {
   entryFeeSol: number;
   maxPlayers: number;
+  fillDeadlineMinutes?: number;
   customMessage?: string;
 }
 
@@ -97,6 +99,16 @@ export function createAdminRoutes(
     // Generate a placeholder game ID for preview
     const previewGameId = 'GAME_ID';
     const blinkUrl = `${baseUrl}/blinks/join/${previewGameId}`;
+    const fillDeadlineMinutes = body.fillDeadlineMinutes || 60;
+
+    // Format deadline display
+    let deadlineText = '';
+    if (fillDeadlineMinutes >= 60) {
+      const hours = Math.floor(fillDeadlineMinutes / 60);
+      deadlineText = `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else {
+      deadlineText = `${fillDeadlineMinutes} min`;
+    }
 
     // Build tweet text
     let text = '';
@@ -109,6 +121,7 @@ export function createAdminRoutes(
 
 💰 Buy-in: ${body.entryFeeSol} SOL
 👥 Max Players: ${body.maxPlayers}
+⏰ Starts in: ${deadlineText}
 🏆 Winner takes all!
 
 Join the battle 👇
@@ -177,10 +190,12 @@ ${blinkUrl}`;
     }
 
     // Post to Twitter
+    const fillDeadlineMinutes = body.fillDeadlineMinutes || 60;
     const announcement: GameAnnouncement = {
       gameId,
       buyInSol: body.entryFeeSol,
       maxPlayers: body.maxPlayers,
+      fillDeadlineMinutes,
       customMessage: body.customMessage,
     };
 
