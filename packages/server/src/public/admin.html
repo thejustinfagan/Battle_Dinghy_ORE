@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle Dinghy Admin</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+    }
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+    header h1 span {
+      color: #ffd700;
+    }
+    .status-bar {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .status-dot.green { background: #4ade80; }
+    .status-dot.red { background: #f87171; }
+    .status-dot.yellow { background: #fbbf24; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      color: #ffd700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card h2::before {
+      content: '⚓';
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      color: #a0a0a0;
+    }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 1rem;
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #ffd700;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+      color: #1a1a2e;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(255,215,0,0.3);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .games-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .game-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .game-item:last-child {
+      margin-bottom: 0;
+    }
+    .game-info h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    .game-info p {
+      font-size: 0.85rem;
+      color: #a0a0a0;
+    }
+    .game-status {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .game-status.waiting { background: #3b82f6; }
+    .game-status.active { background: #22c55e; }
+    .game-status.complete { background: #8b5cf6; }
+    .game-status.cancelled { background: #6b7280; }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+    }
+    .alert.success {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid #22c55e;
+      color: #4ade80;
+    }
+    .alert.error {
+      background: rgba(220, 38, 38, 0.2);
+      border: 1px solid #dc2626;
+      color: #f87171;
+    }
+    .alert.show {
+      display: block;
+    }
+
+    .preview-box {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 0.9rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+    .empty-state span {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: #ffd700;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 5px;
+    }
+    .refresh-btn:hover {
+      transform: rotate(180deg);
+      transition: transform 0.3s;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #6b7280;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><span>⚓</span> Battle Dinghy <span>Admin</span></h1>
+      <div class="status-bar" id="statusBar">
+        <div class="status-item">
+          <div class="status-dot" id="serverStatus"></div>
+          <span>Server</span>
+        </div>
+        <div class="status-item">
+          <div class="status-dot" id="twitterStatus"></div>
+          <span>Twitter</span>
+        </div>
+        <div class="status-item">
+          <span id="uptimeDisplay">Uptime: --</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Create Game Card -->
+      <div class="card">
+        <h2>Create New Game</h2>
+        <div id="createAlert" class="alert"></div>
+        <form id="createGameForm">
+          <div class="form-group">
+            <label for="entryFee">Entry Fee (SOL)</label>
+            <input type="number" id="entryFee" step="0.01" min="0.01" value="0.1" required>
+          </div>
+          <div class="form-group">
+            <label for="maxPlayers">Max Players</label>
+            <input type="number" id="maxPlayers" min="2" max="100" value="10" required>
+          </div>
+          <div class="form-group">
+            <label for="customMessage">Custom Tweet Message (optional)</label>
+            <textarea id="customMessage" placeholder="Add a custom message to the tweet..."></textarea>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" onclick="previewTweet()">Preview Tweet</button>
+            <button type="submit" class="btn btn-primary" id="createBtn">Create & Post to Twitter</button>
+          </div>
+          <div id="tweetPreview" class="preview-box" style="display: none;"></div>
+        </form>
+      </div>
+
+      <!-- Quick Create (No Twitter) -->
+      <div class="card">
+        <h2>Quick Create (No Tweet)</h2>
+        <div id="quickAlert" class="alert"></div>
+        <form id="quickCreateForm">
+          <div class="form-group">
+            <label for="quickGameId">Game ID</label>
+            <input type="text" id="quickGameId" placeholder="my-game-001" required>
+          </div>
+          <div class="form-group">
+            <label for="quickMaxPlayers">Max Players</label>
+            <input type="number" id="quickMaxPlayers" min="2" max="100" value="10" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Create Game</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Active Games -->
+    <div class="card">
+      <h2>
+        Active Games
+        <button class="refresh-btn" onclick="loadGames()" title="Refresh">🔄</button>
+      </h2>
+      <div id="gamesList" class="games-list">
+        <div class="empty-state">
+          <span>🚢</span>
+          <p>Loading games...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Payouts -->
+    <div class="card" style="margin-top: 20px;">
+      <h2>
+        Pending Payouts
+        <button class="refresh-btn" onclick="loadPayouts()" title="Refresh">🔄</button>
+      </h2>
+      <div id="payoutsList" class="games-list">
+        <div class="empty-state">
+          <span>💰</span>
+          <p>Loading payouts...</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Battle Dinghy Admin Dashboard | Powered by ORE
+    </footer>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    // Load status on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadStatus();
+      loadGames();
+      loadPayouts();
+
+      // Refresh status every 30 seconds
+      setInterval(loadStatus, 30000);
+      setInterval(loadGames, 30000);
+    });
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/status`);
+        const data = await res.json();
+
+        document.getElementById('serverStatus').className = 'status-dot green';
+        document.getElementById('twitterStatus').className =
+          data.twitter.configured ? 'status-dot green' : 'status-dot red';
+
+        const uptime = Math.floor(data.server.uptime / 60);
+        document.getElementById('uptimeDisplay').textContent =
+          `Uptime: ${uptime} min`;
+
+        // Update create button based on Twitter status
+        const createBtn = document.getElementById('createBtn');
+        if (!data.twitter.configured) {
+          createBtn.textContent = 'Create Game (Twitter Disabled)';
+        }
+      } catch (err) {
+        document.getElementById('serverStatus').className = 'status-dot red';
+        console.error('Failed to load status:', err);
+      }
+    }
+
+    async function loadGames() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/games`);
+        const data = await res.json();
+
+        const container = document.getElementById('gamesList');
+
+        if (!data.games || data.games.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <span>🚢</span>
+              <p>No active games</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = data.games.map(game => `
+          <div class="game-item">
+            <div class="game-info">
+              <h3>${game.gameId}</h3>
+              <p>${game.players.length} players | Round ${game.currentRound}</p>
+            </div>
+            <span class="game-status ${game.status}">${game.status}</span>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load games:', err);
+      }
+    }
+
+    async function loadPayouts() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/payouts/pending`);
+        const data = await res.json();
+
+        const container = document.getElementById('payoutsList');
+
+        if (!data.success || !data.payouts || data.payouts.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <span>💰</span>
+              <p>No pending payouts</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = data.payouts.map(payout => `
+          <div class="game-item">
+            <div class="game-info">
+              <h3>${payout.gameId}</h3>
+              <p>Winner: ${payout.winner?.slice(0,8)}... | ${payout.prizePool} SOL</p>
+            </div>
+            <button class="btn btn-primary" onclick="markPaid('${payout.gameId}')">Mark Paid</button>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load payouts:', err);
+        document.getElementById('payoutsList').innerHTML = `
+          <div class="empty-state">
+            <span>💰</span>
+            <p>No pending payouts</p>
+          </div>
+        `;
+      }
+    }
+
+    async function previewTweet() {
+      const entryFee = document.getElementById('entryFee').value;
+      const maxPlayers = document.getElementById('maxPlayers').value;
+      const customMessage = document.getElementById('customMessage').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/preview-tweet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entryFeeSol: parseFloat(entryFee),
+            maxPlayers: parseInt(maxPlayers),
+            customMessage
+          })
+        });
+
+        const data = await res.json();
+        const preview = document.getElementById('tweetPreview');
+        preview.style.display = 'block';
+        preview.textContent = data.text + '\n\n[' + data.characterCount + ' characters]';
+      } catch (err) {
+        console.error('Failed to preview:', err);
+      }
+    }
+
+    // Create & Post form
+    document.getElementById('createGameForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const btn = document.getElementById('createBtn');
+      const alert = document.getElementById('createAlert');
+      const originalText = btn.textContent;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading"></span> Creating...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/games/create-and-post`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            entryFeeSol: parseFloat(document.getElementById('entryFee').value),
+            maxPlayers: parseInt(document.getElementById('maxPlayers').value),
+            customMessage: document.getElementById('customMessage').value
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert.className = 'alert success show';
+          alert.innerHTML = `Game <strong>${data.gameId}</strong> created!` +
+            (data.tweetUrl ? ` <a href="${data.tweetUrl}" target="_blank" style="color: #4ade80;">View Tweet</a>` : '');
+          loadGames();
+          document.getElementById('customMessage').value = '';
+          document.getElementById('tweetPreview').style.display = 'none';
+        } else {
+          alert.className = 'alert error show';
+          alert.textContent = data.error || 'Failed to create game';
+        }
+      } catch (err) {
+        alert.className = 'alert error show';
+        alert.textContent = 'Network error: ' + err.message;
+      }
+
+      btn.disabled = false;
+      btn.textContent = originalText;
+
+      setTimeout(() => alert.className = 'alert', 5000);
+    });
+
+    // Quick Create form
+    document.getElementById('quickCreateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const alert = document.getElementById('quickAlert');
+
+      try {
+        const res = await fetch(`${API_BASE}/api/games`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId: document.getElementById('quickGameId').value,
+            maxPlayers: parseInt(document.getElementById('quickMaxPlayers').value)
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert.className = 'alert success show';
+          alert.textContent = `Game ${data.gameId} created!`;
+          loadGames();
+          document.getElementById('quickGameId').value = '';
+        } else {
+          alert.className = 'alert error show';
+          alert.textContent = data.error || 'Failed to create game';
+        }
+      } catch (err) {
+        alert.className = 'alert error show';
+        alert.textContent = 'Network error: ' + err.message;
+      }
+
+      setTimeout(() => alert.className = 'alert', 5000);
+    });
+
+    async function markPaid(gameId) {
+      if (!confirm(`Mark game ${gameId} as paid?`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/payouts/${gameId}/mark-paid`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          alert('Game marked as paid!');
+          loadPayouts();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -5,6 +5,8 @@
 
 import express, { Express } from 'express';
 import { createServer, Server } from 'http';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { GameManager } from './game-manager.js';
 import { createRoutes } from './routes.js';
@@ -138,6 +140,14 @@ export function createApp(options?: CreateAppOptions): {
   const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
   app.use('/api/admin', createAdminRoutes(gameManager, twitterBot, baseUrl, orchestrator));
   console.log('Admin routes enabled at /api/admin');
+
+  // Admin dashboard (static HTML)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  app.get('/admin', (_req, res) => {
+    res.sendFile(join(__dirname, 'public', 'admin.html'));
+  });
+  console.log('Admin dashboard available at /admin');
 
   // WebSocket
   const wss = setupWebSocket(server, gameManager);
