@@ -84,8 +84,8 @@ export function createAdminRoutes(
     const body = req.body as TweetPreviewRequest;
 
     // Validate inputs
-    if (!body.entryFeeSol || body.entryFeeSol <= 0) {
-      res.status(400).json({ error: 'entryFeeSol must be a positive number' });
+    if (!body.entryFeeSol || body.entryFeeSol < 0.0001) {
+      res.status(400).json({ error: 'entryFeeSol must be at least 0.0001' });
       return;
     }
 
@@ -133,10 +133,10 @@ ${blinkUrl}`;
     const body = req.body as CreateAndPostRequest;
 
     // Validate inputs
-    if (!body.entryFeeSol || body.entryFeeSol <= 0) {
+    if (!body.entryFeeSol || body.entryFeeSol < 0.0001) {
       res.status(400).json({
         success: false,
-        error: 'entryFeeSol must be a positive number',
+        error: 'entryFeeSol must be at least 0.0001',
       } as CreateAndPostResponse);
       return;
     }
