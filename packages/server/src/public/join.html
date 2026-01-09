@@ -74,8 +74,8 @@
 
     .stats {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
     }
 
     .stat {
@@ -83,14 +83,14 @@
     }
 
     .stat-label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: #8899aa;
       text-transform: uppercase;
       margin-bottom: 4px;
     }
 
     .stat-value {
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       font-weight: bold;
       color: #4a90e2;
     }
@@ -161,11 +161,11 @@
       cursor: pointer;
       transition: all 0.2s ease;
       text-decoration: none;
+      color: white;
     }
 
     .wallet-btn.phantom {
       background: linear-gradient(135deg, #ab9ff2 0%, #7c3aed 100%);
-      color: white;
     }
 
     .wallet-btn.phantom:hover {
@@ -175,7 +175,6 @@
 
     .wallet-btn.solflare {
       background: linear-gradient(135deg, #fc8c03 0%, #e85d04 100%);
-      color: white;
     }
 
     .wallet-btn.solflare:hover {
@@ -183,9 +182,13 @@
       box-shadow: 0 8px 20px rgba(232, 93, 4, 0.4);
     }
 
-    .wallet-btn img {
-      width: 24px;
-      height: 24px;
+    .wallet-btn.copy-link {
+      background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+    }
+
+    .wallet-btn.copy-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(74, 144, 226, 0.4);
     }
 
     .divider {
@@ -264,6 +267,24 @@
       color: #4a90e2;
       text-decoration: none;
     }
+
+    .copied-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #14f195;
+      color: #0a1628;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .copied-toast.show {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -287,49 +308,110 @@
     </div>
   </div>
 
+  <div id="toast" class="copied-toast">Link copied!</div>
+
   <script>
     const gameId = window.location.pathname.split('/').pop();
     const API_BASE = window.location.origin;
+
+    // The blinks URL that wallets need to interact with
+    const blinksUrl = `${API_BASE}/blinks/join/${gameId}`;
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
 
     async function loadGameInfo() {
       const content = document.getElementById('content');
 
       try {
-        // Fetch game info from the blinks endpoint
-        const res = await fetch(`${API_BASE}/blinks/join/${gameId}`, {
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
+        // Fetch game status from the API
+        const res = await fetch(`${API_BASE}/api/games/${gameId}`);
 
-        const data = await res.json();
-
-        if (data.error || data.disabled) {
+        if (!res.ok) {
           content.innerHTML = `
             <div class="error-message">
-              <span class="status-badge error">Game Unavailable</span>
-              <h2>${data.error?.message || data.description || 'Game not found'}</h2>
-              <p class="info-text">This game may have ended or doesn't exist.</p>
+              <span class="status-badge error">Game Not Found</span>
+              <h2>This game doesn't exist</h2>
+              <p class="info-text">The game may have ended or the link is invalid.</p>
             </div>
           `;
           return;
         }
 
-        // Parse game info from the response
-        const description = data.description || '';
-        const spotsMatch = description.match(/(\d+) spots remaining/);
-        const buyInMatch = description.match(/Buy-in: ([\d.]+) SOL/);
+        const game = await res.json();
 
-        const spotsLeft = spotsMatch ? spotsMatch[1] : '?';
-        const buyInSol = buyInMatch ? buyInMatch[1] : '0.001';
+        // Calculate spots left
+        const currentPlayers = game.players?.length || 0;
+        const maxPlayers = game.maxPlayers || 10;
+        const spotsLeft = maxPlayers - currentPlayers;
+        const buyInSol = game.buyInSol || 0.001;
 
         // Determine status
         let statusClass = 'waiting';
         let statusText = 'Open for Players';
+        let canJoin = true;
 
-        if (data.disabled) {
+        if (game.status === 'active') {
+          statusClass = 'active';
+          statusText = 'In Progress';
+          canJoin = false;
+        } else if (game.status === 'completed' || game.status === 'finished') {
           statusClass = 'completed';
-          statusText = 'Closed';
+          statusText = 'Completed';
+          canJoin = false;
+        } else if (spotsLeft <= 0) {
+          statusClass = 'active';
+          statusText = 'Full';
+          canJoin = false;
+        }
+
+        // Build wallet buttons HTML
+        let buttonsHtml = '';
+        if (canJoin) {
+          buttonsHtml = `
+            <div class="wallet-buttons">
+              <a href="phantom://browse/${encodeURIComponent(blinksUrl)}?ref=${encodeURIComponent(API_BASE)}" class="wallet-btn phantom">
+                <svg width="24" height="24" viewBox="0 0 128 128" fill="none">
+                  <circle cx="64" cy="64" r="64" fill="url(#phantom-grad)"/>
+                  <path d="M110.5 65.7C110.5 89.2 91.5 108.2 68.1 108.2H37C35.6 108.2 34.6 107.1 34.6 105.8V67.6C34.6 66.2 35.6 65.1 37 65.1H68.6C70 65.1 71.1 64 71.1 62.7V62.1C71.1 60.7 70 59.6 68.6 59.6H37C35.6 59.6 34.6 58.5 34.6 57.2V22.2C34.6 20.9 35.6 19.8 37 19.8H68.1C91.5 19.8 110.5 38.8 110.5 62.3V65.7Z" fill="white"/>
+                  <defs><linearGradient id="phantom-grad" x1="64" y1="0" x2="64" y2="128"><stop stop-color="#534BB1"/><stop offset="1" stop-color="#551BF9"/></linearGradient></defs>
+                </svg>
+                Open in Phantom
+              </a>
+              <a href="solflare://ul/v1/browse/${encodeURIComponent(blinksUrl)}" class="wallet-btn solflare">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+                  <circle cx="16" cy="16" r="16" fill="#FC6C04"/>
+                  <path d="M16 6L22 12L16 18L10 12L16 6Z" fill="white"/>
+                  <path d="M16 14L22 20L16 26L10 20L16 14Z" fill="white" fill-opacity="0.6"/>
+                </svg>
+                Open in Solflare
+              </a>
+              <button onclick="copyToClipboard('${blinksUrl}')" class="wallet-btn copy-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy Blinks URL
+              </button>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <p class="info-text">
+              Don't have a Solana wallet?<br>
+              <a href="https://phantom.app/download" target="_blank">Download Phantom</a> or
+              <a href="https://solflare.com/download" target="_blank">Solflare</a> to get started.
+            </p>
+          `;
+        } else {
+          buttonsHtml = `
+            <p class="info-text">This game is no longer accepting players.</p>
+          `;
         }
 
         content.innerHTML = `
@@ -345,6 +427,10 @@
                 <div class="stat-value sol">${buyInSol} SOL</div>
               </div>
               <div class="stat">
+                <div class="stat-label">Players</div>
+                <div class="stat-value">${currentPlayers}/${maxPlayers}</div>
+              </div>
+              <div class="stat">
                 <div class="stat-label">Spots Left</div>
                 <div class="stat-value">${spotsLeft}</div>
               </div>
@@ -352,38 +438,8 @@
           </div>
 
           <div class="join-section">
-            <h3>Join with your Solana wallet</h3>
-            <div class="wallet-buttons">
-              <a href="https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}" class="wallet-btn phantom">
-                <svg width="24" height="24" viewBox="0 0 128 128" fill="white">
-                  <path d="M64 128C99.3462 128 128 99.3462 128 64C128 28.6538 99.3462 0 64 0C28.6538 0 0 28.6538 0 64C0 99.3462 28.6538 128 64 128Z" fill="url(#paint0_linear)"/>
-                  <path d="M110.584 65.6868C110.584 89.1798 91.5505 108.213 68.0575 108.213H37.0119C35.6607 108.213 34.5664 107.119 34.5664 105.768V67.5556C34.5664 66.2044 35.6607 65.1101 37.0119 65.1101H68.6342C69.9854 65.1101 71.0797 64.0158 71.0797 62.6646V62.0881C71.0797 60.7369 69.9854 59.6426 68.6342 59.6426H37.0119C35.6607 59.6426 34.5664 58.5483 34.5664 57.1971V22.2459C34.5664 20.8947 35.6607 19.8004 37.0119 19.8004H68.0575C91.5505 19.8004 110.584 38.8339 110.584 62.3269V65.6868Z" fill="white"/>
-                  <defs>
-                    <linearGradient id="paint0_linear" x1="64" y1="0" x2="64" y2="128" gradientUnits="userSpaceOnUse">
-                      <stop stop-color="#534BB1"/>
-                      <stop offset="1" stop-color="#551BF9"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
-                Open in Phantom
-              </a>
-              <a href="https://solflare.com/ul/v1/browse/${encodeURIComponent(window.location.href)}" class="wallet-btn solflare">
-                <svg width="24" height="24" viewBox="0 0 32 32" fill="white">
-                  <circle cx="16" cy="16" r="16" fill="#FC6C04"/>
-                  <path d="M16 6L22 12L16 18L10 12L16 6Z" fill="white"/>
-                  <path d="M16 14L22 20L16 26L10 20L16 14Z" fill="white" fill-opacity="0.6"/>
-                </svg>
-                Open in Solflare
-              </a>
-            </div>
-
-            <div class="divider"><span>or</span></div>
-
-            <p class="info-text">
-              Don't have a Solana wallet?<br>
-              <a href="https://phantom.app/download" target="_blank">Download Phantom</a> or
-              <a href="https://solflare.com/download" target="_blank">Solflare</a> to get started.
-            </p>
+            ${canJoin ? '<h3>Join with your Solana wallet</h3>' : ''}
+            ${buttonsHtml}
           </div>
         `;
 
