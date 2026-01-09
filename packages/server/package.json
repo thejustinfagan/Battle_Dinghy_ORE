@@ -7,7 +7,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc && npm run copy-assets",
-    "copy-assets": "node -e \"const fs=require('fs');const path=require('path');fs.mkdirSync('dist/public',{recursive:true});fs.copyFileSync('src/public/admin.html','dist/public/admin.html');\"",
+    "copy-assets": "node -e \"const fs=require('fs');fs.mkdirSync('dist/public',{recursive:true});fs.readdirSync('src/public').forEach(f=>fs.copyFileSync('src/public/'+f,'dist/public/'+f));\"",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",

@@ -85,7 +85,8 @@ export class TwitterBot {
 
   async announceNewGame(announcement: GameAnnouncement): Promise<string | null> {
     const { gameId, buyInSol, maxPlayers, customMessage } = announcement;
-    const blinkUrl = `${this.baseUrl}/blinks/join/${gameId}`;
+    // Use /join/ URL which serves a human-readable page that links to wallets
+    const joinUrl = `${this.baseUrl}/join/${gameId}`;
 
     // Build tweet with optional custom message
     let text = '';
@@ -102,7 +103,7 @@ export class TwitterBot {
 
 Join the battle 👇
 
-${blinkUrl}`;
+${joinUrl}`;
 
     try {
       const tweet = await this.client.v2.tweet(text);
@@ -119,7 +120,8 @@ ${blinkUrl}`;
    */
   generateTweetPreview(announcement: GameAnnouncement): { text: string; blinkUrl: string } {
     const { gameId, buyInSol, maxPlayers, fillDeadlineMinutes, customMessage } = announcement;
-    const blinkUrl = `${this.baseUrl}/blinks/join/${gameId}`;
+    // Use /join/ URL which serves a human-readable page
+    const joinUrl = `${this.baseUrl}/join/${gameId}`;
 
     let text = '';
 
@@ -146,9 +148,9 @@ ${blinkUrl}`;
 
 Join the battle 👇
 
-${blinkUrl}`;
+${joinUrl}`;
 
-    return { text, blinkUrl };
+    return { text, blinkUrl: joinUrl };
   }
 
   // ===========================================================================

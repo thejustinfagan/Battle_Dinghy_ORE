@@ -98,7 +98,7 @@ export function createAdminRoutes(
 
     // Generate a placeholder game ID for preview
     const previewGameId = 'GAME_ID';
-    const blinkUrl = `${baseUrl}/blinks/join/${previewGameId}`;
+    const joinUrl = `${baseUrl}/join/${previewGameId}`;
     const fillDeadlineMinutes = body.fillDeadlineMinutes || 60;
 
     // Format deadline display
@@ -126,12 +126,12 @@ export function createAdminRoutes(
 
 Join the battle 👇
 
-${blinkUrl}`;
+${joinUrl}`;
 
     res.json({
       text,
       characterCount: text.length,
-      blinkUrl,
+      blinkUrl: joinUrl,
     } as TweetPreviewResponse);
   });
 

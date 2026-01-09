@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Battle Dinghy</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0d2137 100%);
+      min-height: 100vh;
+      color: #e0e6ed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(26, 42, 74, 0.8);
+      border: 1px solid rgba(74, 144, 226, 0.3);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(10px);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo h1 {
+      font-size: 2rem;
+      color: #4a90e2;
+      text-shadow: 0 0 20px rgba(74, 144, 226, 0.5);
+    }
+
+    .logo .anchor {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .game-info {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .game-id {
+      font-family: monospace;
+      font-size: 1.2rem;
+      color: #ffd700;
+      text-align: center;
+      margin-bottom: 16px;
+      padding: 8px;
+      background: rgba(255, 215, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #8899aa;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #4a90e2;
+    }
+
+    .stat-value.sol {
+      color: #14f195;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .status-badge.waiting {
+      background: rgba(20, 241, 149, 0.2);
+      color: #14f195;
+      border: 1px solid rgba(20, 241, 149, 0.4);
+    }
+
+    .status-badge.active {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+      border: 1px solid rgba(255, 193, 7, 0.4);
+    }
+
+    .status-badge.completed {
+      background: rgba(108, 117, 125, 0.2);
+      color: #6c757d;
+      border: 1px solid rgba(108, 117, 125, 0.4);
+    }
+
+    .status-badge.error {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+      border: 1px solid rgba(220, 53, 69, 0.4);
+    }
+
+    .join-section {
+      text-align: center;
+    }
+
+    .join-section h3 {
+      margin-bottom: 16px;
+      color: #c0c8d0;
+    }
+
+    .wallet-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .wallet-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .wallet-btn.phantom {
+      background: linear-gradient(135deg, #ab9ff2 0%, #7c3aed 100%);
+      color: white;
+    }
+
+    .wallet-btn.phantom:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+    }
+
+    .wallet-btn.solflare {
+      background: linear-gradient(135deg, #fc8c03 0%, #e85d04 100%);
+      color: white;
+    }
+
+    .wallet-btn.solflare:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(232, 93, 4, 0.4);
+    }
+
+    .wallet-btn img {
+      width: 24px;
+      height: 24px;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 24px 0;
+      color: #6c757d;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(108, 117, 125, 0.3);
+    }
+
+    .divider span {
+      padding: 0 16px;
+      font-size: 0.85rem;
+    }
+
+    .info-text {
+      text-align: center;
+      color: #8899aa;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .info-text a {
+      color: #4a90e2;
+      text-decoration: none;
+    }
+
+    .info-text a:hover {
+      text-decoration: underline;
+    }
+
+    .error-message {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .error-message h2 {
+      color: #dc3545;
+      margin-bottom: 12px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(74, 144, 226, 0.3);
+      border-top-color: #4a90e2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer {
+      margin-top: 24px;
+      text-align: center;
+      color: #6c757d;
+      font-size: 0.8rem;
+    }
+
+    .footer a {
+      color: #4a90e2;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <span class="anchor">&#9875;</span>
+        <h1>Battle Dinghy</h1>
+      </div>
+
+      <div id="content">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading game info...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Powered by Solana &bull; <a href="https://twitter.com/battle_dinghy" target="_blank">@battle_dinghy</a>
+    </div>
+  </div>
+
+  <script>
+    const gameId = window.location.pathname.split('/').pop();
+    const API_BASE = window.location.origin;
+
+    async function loadGameInfo() {
+      const content = document.getElementById('content');
+
+      try {
+        // Fetch game info from the blinks endpoint
+        const res = await fetch(`${API_BASE}/blinks/join/${gameId}`, {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        const data = await res.json();
+
+        if (data.error || data.disabled) {
+          content.innerHTML = `
+            <div class="error-message">
+              <span class="status-badge error">Game Unavailable</span>
+              <h2>${data.error?.message || data.description || 'Game not found'}</h2>
+              <p class="info-text">This game may have ended or doesn't exist.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Parse game info from the response
+        const description = data.description || '';
+        const spotsMatch = description.match(/(\d+) spots remaining/);
+        const buyInMatch = description.match(/Buy-in: ([\d.]+) SOL/);
+
+        const spotsLeft = spotsMatch ? spotsMatch[1] : '?';
+        const buyInSol = buyInMatch ? buyInMatch[1] : '0.001';
+
+        // Determine status
+        let statusClass = 'waiting';
+        let statusText = 'Open for Players';
+
+        if (data.disabled) {
+          statusClass = 'completed';
+          statusText = 'Closed';
+        }
+
+        content.innerHTML = `
+          <div style="text-align: center;">
+            <span class="status-badge ${statusClass}">${statusText}</span>
+          </div>
+
+          <div class="game-info">
+            <div class="game-id">${gameId}</div>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-label">Buy-in</div>
+                <div class="stat-value sol">${buyInSol} SOL</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">Spots Left</div>
+                <div class="stat-value">${spotsLeft}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="join-section">
+            <h3>Join with your Solana wallet</h3>
+            <div class="wallet-buttons">
+              <a href="https://phantom.app/ul/browse/${encodeURIComponent(window.location.href)}" class="wallet-btn phantom">
+                <svg width="24" height="24" viewBox="0 0 128 128" fill="white">
+                  <path d="M64 128C99.3462 128 128 99.3462 128 64C128 28.6538 99.3462 0 64 0C28.6538 0 0 28.6538 0 64C0 99.3462 28.6538 128 64 128Z" fill="url(#paint0_linear)"/>
+                  <path d="M110.584 65.6868C110.584 89.1798 91.5505 108.213 68.0575 108.213H37.0119C35.6607 108.213 34.5664 107.119 34.5664 105.768V67.5556C34.5664 66.2044 35.6607 65.1101 37.0119 65.1101H68.6342C69.9854 65.1101 71.0797 64.0158 71.0797 62.6646V62.0881C71.0797 60.7369 69.9854 59.6426 68.6342 59.6426H37.0119C35.6607 59.6426 34.5664 58.5483 34.5664 57.1971V22.2459C34.5664 20.8947 35.6607 19.8004 37.0119 19.8004H68.0575C91.5505 19.8004 110.584 38.8339 110.584 62.3269V65.6868Z" fill="white"/>
+                  <defs>
+                    <linearGradient id="paint0_linear" x1="64" y1="0" x2="64" y2="128" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#534BB1"/>
+                      <stop offset="1" stop-color="#551BF9"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                Open in Phantom
+              </a>
+              <a href="https://solflare.com/ul/v1/browse/${encodeURIComponent(window.location.href)}" class="wallet-btn solflare">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="white">
+                  <circle cx="16" cy="16" r="16" fill="#FC6C04"/>
+                  <path d="M16 6L22 12L16 18L10 12L16 6Z" fill="white"/>
+                  <path d="M16 14L22 20L16 26L10 20L16 14Z" fill="white" fill-opacity="0.6"/>
+                </svg>
+                Open in Solflare
+              </a>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <p class="info-text">
+              Don't have a Solana wallet?<br>
+              <a href="https://phantom.app/download" target="_blank">Download Phantom</a> or
+              <a href="https://solflare.com/download" target="_blank">Solflare</a> to get started.
+            </p>
+          </div>
+        `;
+
+      } catch (err) {
+        console.error('Error loading game:', err);
+        content.innerHTML = `
+          <div class="error-message">
+            <span class="status-badge error">Error</span>
+            <h2>Failed to load game</h2>
+            <p class="info-text">Please try refreshing the page.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Load game info on page load
+    loadGameInfo();
+  </script>
+</body>
+</html>

@@ -141,13 +141,21 @@ export function createApp(options?: CreateAppOptions): {
   app.use('/api/admin', createAdminRoutes(gameManager, twitterBot, baseUrl, orchestrator));
   console.log('Admin routes enabled at /api/admin');
 
-  // Admin dashboard (static HTML)
+  // Static files and HTML pages
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
+
+  // Admin dashboard
   app.get('/admin', (_req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin.html'));
   });
   console.log('Admin dashboard available at /admin');
+
+  // Join page - human-readable fallback for users without Blinks wallets
+  app.get('/join/:gameId', (_req, res) => {
+    res.sendFile(join(__dirname, 'public', 'join.html'));
+  });
+  console.log('Join page available at /join/:gameId');
 
   // WebSocket
   const wss = setupWebSocket(server, gameManager);
