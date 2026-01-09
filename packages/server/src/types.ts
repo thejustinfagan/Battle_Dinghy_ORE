@@ -18,6 +18,8 @@ export interface ManagedGame {
   createdAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  maxPlayers: number;
+  buyInSol: number;
 }
 
 // =============================================================================
@@ -54,6 +56,7 @@ export interface GameStatusResponse {
   players: string[];
   currentRound: number;
   maxPlayers: number;
+  buyInSol: number;
   winner: string | null;
   startedAt: number | null;
   completedAt: number | null;

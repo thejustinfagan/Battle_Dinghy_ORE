@@ -280,10 +280,30 @@
       font-weight: 600;
       opacity: 0;
       transition: opacity 0.3s;
+      z-index: 100;
     }
 
     .copied-toast.show {
       opacity: 1;
+    }
+
+    .instructions {
+      background: rgba(74, 144, 226, 0.1);
+      border: 1px solid rgba(74, 144, 226, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .instructions ol {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    .instructions li {
+      margin-bottom: 4px;
     }
   </style>
 </head>
@@ -317,8 +337,22 @@
     // The blinks URL that wallets need to interact with
     const blinksUrl = `${API_BASE}/blinks/join/${gameId}`;
 
+    // Detect if on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     function copyToClipboard(text) {
       navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('toast');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      }).catch(() => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
         const toast = document.getElementById('toast');
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2000);
@@ -373,9 +407,13 @@
         // Build wallet buttons HTML
         let buttonsHtml = '';
         if (canJoin) {
+          // Use universal links that work on both mobile and desktop
+          const phantomUrl = `https://phantom.app/ul/browse/${encodeURIComponent(blinksUrl)}`;
+          const solflareUrl = `https://solflare.com/ul/v1/browse/${encodeURIComponent(blinksUrl)}`;
+
           buttonsHtml = `
             <div class="wallet-buttons">
-              <a href="phantom://browse/${encodeURIComponent(blinksUrl)}?ref=${encodeURIComponent(API_BASE)}" class="wallet-btn phantom">
+              <a href="${phantomUrl}" class="wallet-btn phantom" target="_blank" rel="noopener">
                 <svg width="24" height="24" viewBox="0 0 128 128" fill="none">
                   <circle cx="64" cy="64" r="64" fill="url(#phantom-grad)"/>
                   <path d="M110.5 65.7C110.5 89.2 91.5 108.2 68.1 108.2H37C35.6 108.2 34.6 107.1 34.6 105.8V67.6C34.6 66.2 35.6 65.1 37 65.1H68.6C70 65.1 71.1 64 71.1 62.7V62.1C71.1 60.7 70 59.6 68.6 59.6H37C35.6 59.6 34.6 58.5 34.6 57.2V22.2C34.6 20.9 35.6 19.8 37 19.8H68.1C91.5 19.8 110.5 38.8 110.5 62.3V65.7Z" fill="white"/>
@@ -383,7 +421,7 @@
                 </svg>
                 Open in Phantom
               </a>
-              <a href="solflare://ul/v1/browse/${encodeURIComponent(blinksUrl)}" class="wallet-btn solflare">
+              <a href="${solflareUrl}" class="wallet-btn solflare" target="_blank" rel="noopener">
                 <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
                   <circle cx="16" cy="16" r="16" fill="#FC6C04"/>
                   <path d="M16 6L22 12L16 18L10 12L16 6Z" fill="white"/>
@@ -407,6 +445,16 @@
               <a href="https://phantom.app/download" target="_blank">Download Phantom</a> or
               <a href="https://solflare.com/download" target="_blank">Solflare</a> to get started.
             </p>
+
+            <div class="instructions">
+              <strong>How to join:</strong>
+              <ol>
+                <li>Click "Open in Phantom" or "Open in Solflare"</li>
+                <li>The wallet app will open with the game action</li>
+                <li>Tap "Join Game" and approve the transaction</li>
+                <li>You're in! Wait for more players to join</li>
+              </ol>
+            </div>
           `;
         } else {
           buttonsHtml = `

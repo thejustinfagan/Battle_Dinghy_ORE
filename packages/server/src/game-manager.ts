@@ -45,7 +45,7 @@ export class GameManager extends EventEmitter {
    */
   createGame(
     gameId: string,
-    options: { maxPlayers?: number; buyIn?: number } = {}
+    options: { maxPlayers?: number; buyInSol?: number } = {}
   ): { success: boolean; seed?: Uint8Array; error?: string } {
     if (this.games.has(gameId)) {
       return { success: false, error: 'Game already exists' };
@@ -56,6 +56,7 @@ export class GameManager extends EventEmitter {
       options.maxPlayers ?? DEFAULT_MAX_PLAYERS,
       MAX_PLAYERS
     );
+    const buyInSol = options.buyInSol ?? 0.001;
 
     const game: ManagedGame = {
       gameId,
@@ -70,12 +71,14 @@ export class GameManager extends EventEmitter {
       createdAt: Date.now(),
       startedAt: null,
       completedAt: null,
+      maxPlayers,
+      buyInSol,
     };
 
     this.games.set(gameId, game);
     this.subscriptions.set(gameId, new Set());
 
-    this.emit('game_created', { gameId, maxPlayers });
+    this.emit('game_created', { gameId, maxPlayers, buyInSol });
 
     return { success: true, seed };
   }
@@ -227,7 +230,8 @@ export class GameManager extends EventEmitter {
       status: game.status,
       players: Array.from(game.players),
       currentRound: engine?.getCurrentRound() ?? 0,
-      maxPlayers: MAX_PLAYERS,
+      maxPlayers: game.maxPlayers,
+      buyInSol: game.buyInSol,
       winner: engine?.getWinner() ?? null,
       startedAt: game.startedAt,
       completedAt: game.completedAt,

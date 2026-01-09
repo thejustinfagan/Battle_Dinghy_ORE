@@ -175,10 +175,9 @@ ${joinUrl}`;
     const gameId = `BD-${Date.now().toString(36).toUpperCase()}`;
 
     // Create the game
-    const buyInLamports = Math.floor(body.entryFeeSol * 1_000_000_000);
     const createResult = gameManager.createGame(gameId, {
       maxPlayers: body.maxPlayers,
-      buyIn: buyInLamports,
+      buyInSol: body.entryFeeSol,
     });
 
     if (!createResult.success) {
