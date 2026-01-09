@@ -456,59 +456,107 @@ export class OreActiveMiner {
   
   /**
    * Finalize game - transfer prize to winner, claim ORE and close miner
+   * CRITICAL: Checks actual escrow balance before payout to handle mining losses
    */
   private async finalizeGame(): Promise<void> {
     console.log(`\n🏁 Finalizing game ${this.gameId}...`);
-    
+
     try {
       const game = await storage.getGame(this.gameId);
       if (!game || !game.winnerId) {
         console.error(`  ❌ No winner found for game ${this.gameId}`);
         return;
       }
-      
+
       const winner = await storage.getPlayer(game.winnerId);
       if (!winner) {
         console.error(`  ❌ Winner player not found: ${game.winnerId}`);
         return;
       }
-      
-      // Calculate platform fee and winner payout (basis points: 500 = 5%, 550 = 5.5%)
+
+      // CRITICAL: Get ACTUAL escrow balance to handle mining losses
+      const escrowBalance = await this.connection.getBalance(this.escrowKeypair.publicKey);
+      const RENT_EXEMPT_MIN = 890880; // ~0.00089 SOL minimum for rent exemption
+      const availableBalance = Math.max(0, escrowBalance - RENT_EXEMPT_MIN);
+
+      console.log(`  📊 Escrow balance: ${escrowBalance / LAMPORTS_PER_SOL} SOL`);
+      console.log(`  📊 Available for payout: ${availableBalance / LAMPORTS_PER_SOL} SOL`);
+      console.log(`  📊 Expected prize pool: ${game.prizePoolSol / LAMPORTS_PER_SOL} SOL`);
+
+      // CRITICAL: Check if we have enough to pay the winner
       const platformFeeBasisPoints = game.platformFeeBasisPoints || 0;
-      const platformFeeLamports = Math.floor((game.prizePoolSol * platformFeeBasisPoints) / 10000);
-      const winnerPayoutLamports = game.prizePoolSol - platformFeeLamports;
-      
-      const platformFeePercentage = platformFeeBasisPoints / 100; // Convert back for logging
-      console.log(`  💰 Prize Pool: ${game.prizePoolSol / LAMPORTS_PER_SOL} SOL`);
-      console.log(`  💸 Platform Fee (${platformFeePercentage}%): ${platformFeeLamports / LAMPORTS_PER_SOL} SOL`);
-      console.log(`  🏆 Winner Payout: ${winnerPayoutLamports / LAMPORTS_PER_SOL} SOL`);
-      
+
+      // Calculate expected vs actual payout
+      const expectedPayout = game.prizePoolSol - Math.floor((game.prizePoolSol * platformFeeBasisPoints) / 10000);
+
+      let actualPayoutLamports: number;
+      let actualPlatformFeeLamports: number;
+
+      if (availableBalance >= expectedPayout) {
+        // Normal case: we have enough SOL
+        actualPlatformFeeLamports = Math.floor((game.prizePoolSol * platformFeeBasisPoints) / 10000);
+        actualPayoutLamports = game.prizePoolSol - actualPlatformFeeLamports;
+      } else {
+        // SHORTFALL: Mining lost SOL - pay winner what we have (minus minimal platform fee)
+        console.warn(`  ⚠️ PRIZE SHORTFALL DETECTED!`);
+        console.warn(`  ⚠️ Expected: ${expectedPayout / LAMPORTS_PER_SOL} SOL`);
+        console.warn(`  ⚠️ Available: ${availableBalance / LAMPORTS_PER_SOL} SOL`);
+        console.warn(`  ⚠️ Shortfall: ${(expectedPayout - availableBalance) / LAMPORTS_PER_SOL} SOL`);
+
+        // In shortfall scenario, reduce platform fee proportionally and pay winner the rest
+        const shortfallRatio = availableBalance / game.prizePoolSol;
+        actualPlatformFeeLamports = Math.floor((availableBalance * platformFeeBasisPoints) / 10000);
+        actualPayoutLamports = availableBalance - actualPlatformFeeLamports;
+
+        // Log the discrepancy for auditing
+        await storage.updateGame(this.gameId, {
+          oreSolNetProfit: availableBalance - game.prizePoolSol, // Negative = loss
+        });
+      }
+
+      const platformFeePercentage = platformFeeBasisPoints / 100;
+      console.log(`  💰 Original Prize Pool: ${game.prizePoolSol / LAMPORTS_PER_SOL} SOL`);
+      console.log(`  💸 Platform Fee (${platformFeePercentage}%): ${actualPlatformFeeLamports / LAMPORTS_PER_SOL} SOL`);
+      console.log(`  🏆 Winner Payout: ${actualPayoutLamports / LAMPORTS_PER_SOL} SOL`);
+
+      // Ensure we have something to pay
+      if (actualPayoutLamports <= 0) {
+        console.error(`  ❌ CRITICAL: No funds available for winner payout!`);
+        await storage.updateGame(this.gameId, {
+          oreMinerClosedAt: new Date(),
+        });
+        this.stop();
+        return;
+      }
+
       // Transfer prize to winner
       const { solanaEscrow } = await import("./solana-escrow");
       const { PublicKey } = await import("@solana/web3.js");
-      
+
       const winnerPublicKey = new PublicKey(winner.walletAddress);
-      const txSignature = await solanaEscrow.sendPrizeToWinner(winnerPublicKey, winnerPayoutLamports);
-      
+      const txSignature = await solanaEscrow.sendPrizeToWinner(winnerPublicKey, actualPayoutLamports);
+
       console.log(`  ✅ Prize transferred to @${winner.twitterHandle}`);
       console.log(`     TX: ${txSignature}`);
-      
+
       // Update platform fees collected
       await storage.updateGame(this.gameId, {
-        platformFeesCollected: platformFeeLamports,
+        platformFeesCollected: actualPlatformFeeLamports,
+        winnerPayoutLamports: actualPayoutLamports,
+        winnerPayoutTx: txSignature,
       });
-      
+
       // TODO: Create miner's ORE token account
       // TODO: ClaimORE instruction
       // TODO: Close miner account
       // TODO: Transfer ORE to winner
-      
+
       console.log(`  📝 Game finalization complete (ORE claim/transfer pending full implementation)`);
-      
+
       await storage.updateGame(this.gameId, {
         oreMinerClosedAt: new Date(),
       });
-      
+
       this.stop();
     } catch (error) {
       console.error(`❌ Error finalizing game:`, error);
@@ -549,17 +597,56 @@ export class OreActiveMiner {
 
 /**
  * Active Mining Manager - singleton to manage all active miners
+ * Includes periodic cleanup to prevent memory leaks
  */
 class OreActiveMiningService {
   private activeMiners: Map<string, OreActiveMiner> = new Map();
   private escrowKeypair: Keypair | null = null;
-  
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
   /**
    * Initialize with escrow keypair
    */
   initialize(escrowKeypair: Keypair): void {
     this.escrowKeypair = escrowKeypair;
     console.log(`⚡ OreActiveMiningService initialized with escrow wallet`);
+
+    // Start periodic cleanup to remove stopped miners (prevents memory leaks)
+    if (!this.cleanupInterval) {
+      this.cleanupInterval = setInterval(() => {
+        this.cleanupStoppedMiners();
+      }, 60_000); // Check every minute
+    }
+  }
+
+  /**
+   * Check if service is initialized
+   */
+  isInitialized(): boolean {
+    return this.escrowKeypair !== null;
+  }
+
+  /**
+   * Remove stopped miners from the map (memory cleanup)
+   */
+  private cleanupStoppedMiners(): void {
+    const toRemove: string[] = [];
+
+    for (const [gameId, miner] of this.activeMiners) {
+      const status = miner.getStatus();
+      if (!status.isRunning) {
+        toRemove.push(gameId);
+      }
+    }
+
+    for (const gameId of toRemove) {
+      this.activeMiners.delete(gameId);
+      console.log(`🧹 Cleaned up stopped miner for game ${gameId}`);
+    }
+
+    if (toRemove.length > 0) {
+      console.log(`🧹 Cleanup complete: removed ${toRemove.length} stopped miners, ${this.activeMiners.size} active`);
+    }
   }
   
   /**
@@ -601,14 +688,21 @@ class OreActiveMiningService {
   }
   
   /**
-   * Stop all miners
+   * Stop all miners and cleanup resources
    */
   stopAll(): void {
+    // Stop cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
+    // Stop all active miners
     for (const [gameId, miner] of this.activeMiners) {
       miner.stop();
     }
     this.activeMiners.clear();
-    console.log(`⏹️  All miners stopped`);
+    console.log(`⏹️  All miners stopped and resources cleaned up`);
   }
 }
 

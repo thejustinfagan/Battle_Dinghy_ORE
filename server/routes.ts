@@ -5,15 +5,167 @@ import { generateRandomBoard, oreHashToCoordinate, processShot, calculateTotalHu
 import { generateBoardImage } from "./board-image-generator";
 import { postGameAnnouncement, postShotAnnouncement, postWinnerAnnouncement, sendPlayerBoard, checkTwitterCredentials, initiateOAuthFlow, handleOAuthCallback } from "./twitter-bot";
 import { oreMonitor } from "./ore-monitor";
-import { OreActiveMiner } from "./ore-active-miner";
+import { OreActiveMiner, oreActiveMiningService } from "./ore-active-miner";
 import { solanaEscrow } from "./solana-escrow";
 import { requireAdminAuth } from "./auth-middleware";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import type { Player } from "@shared/schema";
 import { insertGameSchema, insertPlayerSchema, insertShotSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+  // Track whether mining service is initialized
+  let miningServiceInitialized = false;
+
+  // CRITICAL: Mutex to prevent duplicate auto-starts (race condition fix)
+  const gamesBeingStarted = new Set<string>();
+
+  // Initialize ORE Active Mining Service with escrow keypair
+  try {
+    const escrowKeypair = solanaEscrow.getEscrowKeypair();
+    oreActiveMiningService.initialize(escrowKeypair);
+    miningServiceInitialized = true;
+    console.log("✅ ORE Active Mining Service initialized");
+  } catch (error) {
+    console.warn("⚠️  Failed to initialize ORE Active Mining Service:", error);
+    console.warn("⚠️  Active mining will not be available until escrow keypair is configured");
+  }
+
+  // Helper function to start a game with active ORE mining
+  // Includes mutex lock, proper error handling, and status rollback
+  async function startGameWithActiveMining(gameId: string, req: any): Promise<{ success: boolean; tweetId?: string; threadId?: string; error?: string }> {
+    // CRITICAL: Check if mining service is initialized
+    if (!miningServiceInitialized) {
+      return { success: false, error: "Mining service not initialized - escrow keypair required" };
+    }
+
+    // CRITICAL: Atomic check-and-set to prevent race conditions
+    if (gamesBeingStarted.has(gameId)) {
+      console.log(`⚠️ Game ${gameId} start already in progress, skipping duplicate`);
+      return { success: false, error: "Game start already in progress" };
+    }
+    gamesBeingStarted.add(gameId);
+
+    try {
+      const game = await storage.getGame(gameId);
+      if (!game) {
+        return { success: false, error: "Game not found" };
+      }
+
+      if (game.status !== "pending") {
+        return { success: false, error: "Game already started" };
+      }
+
+      // Generate website join URL (where users verify Twitter handle)
+      const host = req.get('host') || 'battle-dinghy.replit.app';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const joinUrl = `${protocol}://${host}/join/${gameId}`;
+
+      // CRITICAL FIX: Start mining BEFORE updating status
+      // This ensures we don't leave game in "active" state with no miner
+      const prizePoolLamports = game.prizePoolSol; // Already in lamports
+
+      try {
+        await oreActiveMiningService.startMining(gameId, prizePoolLamports);
+      } catch (miningError) {
+        console.error(`❌ Failed to start mining for game ${gameId}:`, miningError);
+        // Don't update game status - leave as "pending" so it can be retried
+        return {
+          success: false,
+          error: `Mining initialization failed: ${miningError instanceof Error ? miningError.message : 'Unknown error'}`
+        };
+      }
+
+      // Mining started successfully - NOW update game status
+      await storage.updateGameStatus(gameId, "active");
+
+      // Post Twitter announcement (only if not already posted)
+      let tweetId = game.tweetId || undefined;
+      let threadId = game.threadId || undefined;
+
+      if (!tweetId) {
+        try {
+          const announcement = await postGameAnnouncement(game, joinUrl);
+          tweetId = announcement.tweetId;
+          threadId = announcement.threadId;
+          await storage.updateGameTweet(gameId, tweetId, threadId);
+        } catch (twitterError) {
+          // Twitter failure is not critical - game can continue without tweet
+          console.warn(`⚠️ Twitter announcement failed for game ${gameId}:`, twitterError);
+        }
+      }
+
+      console.log(`🚀 Game ${gameId} started with active ORE mining`);
+      return { success: true, tweetId, threadId };
+    } catch (error) {
+      console.error(`Error starting game ${gameId} with active mining:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to start game"
+      };
+    } finally {
+      // CRITICAL: Always remove from mutex set
+      gamesBeingStarted.delete(gameId);
+    }
+  }
+
+  // Scheduled job to check deadlines and auto-start games
+  const deadlineCheckInterval = setInterval(async () => {
+    try {
+      // Get pending games by querying the database directly
+      const { db } = await import("./db");
+      const { games } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const pendingGamesList = await db
+        .select()
+        .from(games)
+        .where(eq(games.status, "pending"));
+
+      const now = Date.now();
+      const DEADLINE_HOURS = 1; // Default deadline: 1 hour after creation
+
+      for (const game of pendingGamesList) {
+        // Check if deadline has passed (1 hour after creation)
+        const createdAt = game.createdAt ? new Date(game.createdAt).getTime() : null;
+        const deadlinePassed = createdAt && (now >= createdAt + DEADLINE_HOURS * 60 * 60 * 1000);
+        
+        // Check if game is full
+        const isFull = game.currentPlayers >= game.maxPlayers;
+        
+        // Auto-start if: (full OR deadline passed) AND has at least 2 players
+        const shouldStart = (isFull || deadlinePassed) && game.currentPlayers >= 2;
+
+        if (shouldStart) {
+          console.log(`⏰ Auto-starting game ${game.id} (${isFull ? 'full' : 'deadline passed'}) - ${game.currentPlayers} players`);
+          
+          // Create a mock request object for the helper function
+          const mockReq = {
+            get: (header: string) => {
+              if (header === 'host') return process.env.HOST || 'battle-dinghy.replit.app';
+              return undefined;
+            }
+          };
+
+          const result = await startGameWithActiveMining(game.id, mockReq);
+          if (!result.success) {
+            console.error(`Failed to auto-start game ${game.id}:`, result.error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error in deadline check:", error);
+    }
+  }, 30_000); // Check every 30 seconds
+
+  // Cleanup interval on server shutdown
+  process.on('SIGTERM', () => {
+    clearInterval(deadlineCheckInterval);
+  });
+  process.on('SIGINT', () => {
+    clearInterval(deadlineCheckInterval);
+  });
   
   // CORS middleware for Solana Actions API (spec-compliant)
   const actionsCorsMid = (req: any, res: any, next: any) => {
@@ -941,6 +1093,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Auto-start game if it's full and has at least 2 players
+      if (updatedGame.currentPlayers >= updatedGame.maxPlayers && updatedGame.currentPlayers >= 2 && updatedGame.status === "pending") {
+        console.log(`🎮 Game ${gameId} is full (${updatedGame.currentPlayers}/${updatedGame.maxPlayers}), auto-starting...`);
+        
+        // Start game with active mining in background (don't wait for it)
+        startGameWithActiveMining(gameId, req).catch((error) => {
+          console.error(`Failed to auto-start game ${gameId}:`, error);
+        });
+      }
+
       res.json({
         success: true,
         player: result.player,
@@ -1001,34 +1163,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API to start a game (triggers Twitter announcement and ORE monitoring) - Admin only
+  // API to start a game (triggers Twitter announcement and active ORE mining) - Admin only
   app.post("/api/games/:gameId/start", requireAdminAuth, async (req, res) => {
     try {
       const { gameId } = req.params;
-      const game = await storage.getGame(gameId);
+      const result = await startGameWithActiveMining(gameId, req);
 
-      if (!game) {
-        return res.status(404).json({ error: "Game not found" });
+      if (!result.success) {
+        return res.status(400).json({ error: result.error || "Failed to start game" });
       }
 
-      if (game.status !== "pending") {
-        return res.status(400).json({ error: "Game already started" });
-      }
-
-      await storage.updateGameStatus(gameId, "active");
-
-      // Generate website join URL (where users verify Twitter handle)
-      const host = req.get('host') || 'battle-dinghy.replit.app';
-      const protocol = host.includes('localhost') ? 'http' : 'https';
-      const joinUrl = `${protocol}://${host}/join/${gameId}`;
-      
-      const { tweetId, threadId } = await postGameAnnouncement(game, joinUrl);
-      
-      await storage.updateGameTweet(gameId, tweetId, threadId);
-
-      await oreMonitor.startMonitoring(gameId);
-
-      res.json({ success: true, tweetId, threadId, oreMonitorActive: true });
+      res.json({ 
+        success: true, 
+        tweetId: result.tweetId, 
+        threadId: result.threadId, 
+        oreMiningActive: true 
+      });
     } catch (error) {
       console.error("Error starting game:", error);
       res.status(500).json({ error: "Failed to start game" });
